@@ -9,7 +9,7 @@
 | 项目 README | [/README.md](../README.md) | 项目简介、技术栈、目录结构、快速开始 |
 | 代理工作指南 | [/AGENTS.md](../AGENTS.md) | 面向 AI 编码代理的工程约定、命令与安全红线 |
 | 后端 README | [/backend/README.md](../backend/README.md) | 后端服务的模块说明与开发指引 |
-| 前端 README | [/frontend/README.md](../frontend/README.md) | 前端工程说明（前端目录暂未纳入版本管理） |
+| 前端 README | [/frontend/README.md](../frontend/README.md) | 前端工程说明（Vite 脚手架自带） |
 | 本索引 | [/docs/INDEX.md](INDEX.md) | 文档总入口 |
 
 ## 配置与基础设施
@@ -34,6 +34,15 @@
 | 会话管理 | [/backend/app/db/session.py](../backend/app/db/session.py) | 异步引擎与 `AsyncSessionLocal` 工厂 |
 | 会话依赖 | [/backend/app/db/deps.py](../backend/app/db/deps.py) | FastAPI `DbSession` 依赖注入 |
 | COS 存储 | [/backend/app/storage/cos_client.py](../backend/app/storage/cos_client.py) | 腾讯云 COS 客户端封装与连通检查 |
+
+## 前端模块
+
+| 模块 | 位置 | 说明 |
+| --- | --- | --- |
+| 应用入口 | [/frontend/src/main.tsx](../frontend/src/main.tsx) | React 根组件挂载 |
+| 根组件 | [/frontend/src/App.tsx](../frontend/src/App.tsx) | 当前为 Vite 脚手架示例页，待替换为业务页面 |
+| 构建配置 | [/frontend/vite.config.ts](../frontend/vite.config.ts) | Vite + @vitejs/plugin-react |
+| 依赖锁定 | [/frontend/package-lock.json](../frontend/package-lock.json) | npm 锁文件，**必须提交**以保证可复现安装 |
 
 ## 规划中的文档（待补充）
 

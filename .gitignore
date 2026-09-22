@@ -27,3 +27,6 @@ Thumbs.db
 
 # ===== 日志与本地数据 =====
 *.log
+
+# ===== WorkBuddy 对话日志与本地工作区数据 =====
+.workbuddy/

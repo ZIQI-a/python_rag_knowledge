@@ -27,7 +27,7 @@ python-rag-knowledge/
 │   │   └── main.py         # 应用入口（create_app）
 │   ├── alembic/            # 数据库迁移
 │   └── pyproject.toml      # uv 项目定义
-├── frontend/               # React + Vite 前端（暂未纳入版本管理）
+├── frontend/               # React + Vite 前端
 ├── docker-compose.yml      # 本地 PostgreSQL + pgvector
 ├── .env.example            # 环境变量模板
 └── docs/                   # 项目文档（见 docs/INDEX.md）
