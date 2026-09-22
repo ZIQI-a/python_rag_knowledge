@@ -1,16 +1,15 @@
 # DOCS — 文档索引
 
-本文件是项目文档的总入口（索引），按主题列出所有文档的位置与用途。
+项目文档总入口，按主题列出位置与用途。
 
 ## 总览
 
 | 文档 | 位置 | 说明 |
 | --- | --- | --- |
-| 项目 README | [/README.md](../README.md) | 项目简介、技术栈、目录结构、快速开始 |
-| 代理工作指南 | [/AGENTS.md](../AGENTS.md) | 面向 AI 编码代理的工程约定、命令与安全红线 |
-| 后端 README | [/backend/README.md](../backend/README.md) | 后端服务的模块说明与开发指引 |
+| 项目 README | [/README.md](../README.md) | 简介、技术栈、目录结构、快速开始 |
+| 代理工作指南 | [/AGENTS.md](../AGENTS.md) | AI 代理工程约定、命令与安全红线 |
+| 后端 README | [/backend/README.md](../backend/README.md) | 后端模块说明与开发指引 |
 | 前端 README | [/frontend/README.md](../frontend/README.md) | 前端工程说明（Vite 脚手架自带） |
-| 本索引 | [/docs/INDEX.md](INDEX.md) | 文档总入口 |
 
 ## 配置与基础设施
 

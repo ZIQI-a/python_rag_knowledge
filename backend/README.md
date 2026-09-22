@@ -4,12 +4,7 @@ FastAPI 异步后端，为 RAG 知识库提供 API、数据模型与存储接入
 
 ## 技术栈
 
-- Python 3.14（见 `.python-version`），包管理使用 [uv](https://docs.astral.sh/uv/)
-- FastAPI + Uvicorn：HTTP 服务
-- SQLAlchemy 2.0 (asyncio) + asyncpg：异步数据库访问
-- Alembic：数据库迁移
-- pydantic-settings：从仓库根目录 `.env` 读取配置
-- cos-python-sdk-v5：腾讯云 COS 对象存储
+Python 3.14（[uv](https://docs.astral.sh/uv/) 管理）· FastAPI + Uvicorn · SQLAlchemy 2.0 (asyncio) + asyncpg · Alembic · pydantic-settings（读根目录 `.env`）· cos-python-sdk-v5
 
 ## 目录说明
 
