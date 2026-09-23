@@ -44,6 +44,7 @@ export function BasicLayout() {
                 </div>
                 <Menu
                     mode={'inline'}
+                    theme={'dark'}
                     selectedKeys={[location.pathname]}
                     items={menuItems}
                 />
