@@ -1,6 +1,6 @@
-# RAG Knowledge — AI 企业 RAG 知识库
+# RAG Knowledge — AI RAG 知识库
 
-面向企业场景的检索增强生成（RAG）知识库：统一采集企业文档，切分、向量化后存入向量数据库，提供基于私有知识的智能问答与检索。
+检索增强生成（RAG）知识库。目前完成前后端基础工程、健康检查、数据库连接和 COS 连通检查；文档采集、切分、向量化、检索与问答仍在建设中。
 
 ## 技术栈
 
@@ -40,12 +40,14 @@ docker compose up -d          # 启动 PostgreSQL + pgvector
 cd backend
 uv sync
 uv run alembic upgrade head   # 应用数据库迁移
-uv run uvicorn app.main:app --reload
+uv run uvicorn app.main:app --reload --port 8080
 # 健康检查：GET /api/health 、/api/health/db 、/api/health/cos
 
 cd ../frontend
 npm install && npm run dev
 ```
+
+前端开发代理指向后端 `8080` 端口。`frontend/openapi-ts.config.ts` 当前使用 `8000` 端口生成 API 客户端；运行 `npm run gen-api` 前需将其与实际后端端口对齐。
 
 ## 文档
 

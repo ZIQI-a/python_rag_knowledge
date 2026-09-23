@@ -13,6 +13,7 @@ npm install        # 安装依赖（package-lock.json 必须提交）
 npm run dev        # 开发启动
 npm run build      # tsc + vite 构建
 npm run lint       # ESLint 检查
+npm run gen-api    # 从后端 OpenAPI 生成 API 客户端；先核对 openapi-ts.config.ts 的端口
 ```
 
 ## 前端约定
@@ -22,6 +23,7 @@ npm run lint       # ESLint 检查
 3. **全局样式**：`src/index.css` 仅保留全局重置，页面样式优先用 antd 组件属性与内联 style，不新增全局 CSS。
 4. **完成标准**：改动须通过 `npm run lint` 与 `npm run build` 验证。
 5. **接口联调**：后端 API 前缀为 `/api`，健康检查为 `/api/health*`。
+6. **生成代码**：`src/client/` 由 `openapi-ts.config.ts` 生成，接口变化后重新生成，不手工修改生成文件。
 
 ## 目录速查
 
@@ -31,3 +33,4 @@ npm run lint       # ESLint 检查
 | 修改主布局/菜单 | `src/layouts/BasicLayout.tsx` |
 | 应用入口（挂载/语言包） | `src/main.tsx` |
 | 构建配置 | `vite.config.ts` |
+| API 客户端生成 | `openapi-ts.config.ts` + `src/client/` |

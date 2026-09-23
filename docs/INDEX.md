@@ -11,7 +11,7 @@
 | 后端约束 | [/backend/AGENTS.md](../backend/AGENTS.md) | 后端命令与工程约定（仅后端开发时读取） |
 | 前端约束 | [/frontend/AGENTS.md](../frontend/AGENTS.md) | 前端命令与工程约定（仅前端开发时读取） |
 | 后端 README | [/backend/README.md](../backend/README.md) | 后端模块说明与开发指引 |
-| 前端 README | [/frontend/README.md](../frontend/README.md) | 前端工程说明（Vite 脚手架自带） |
+| 前端 README | [/frontend/README.md](../frontend/README.md) | 前端开发、API 客户端生成说明 |
 
 ## 配置与基础设施
 
@@ -31,7 +31,7 @@
 | 全局异常 | [/backend/app/api/error_handlers.py](../backend/app/api/error_handlers.py) | 统一异常到响应的转换 |
 | 日志体系 | [/backend/app/core/logging.py](../backend/app/core/logging.py) | `configure_logging` / `get_logger` |
 | 异常定义 | [/backend/app/core/exceptions.py](../backend/app/core/exceptions.py) | 业务异常基类（如 `ConfigurationError`） |
-| 数据模型 | [/backend/app/db/base.py](../backend/app/db/base.py) | SQLAlchemy `Base` 与模型定义 |
+| 数据模型基类 | [/backend/app/db/base.py](../backend/app/db/base.py) | SQLAlchemy `Base`；业务模型尚未建立 |
 | 会话管理 | [/backend/app/db/session.py](../backend/app/db/session.py) | 异步引擎与 `AsyncSessionLocal` 工厂 |
 | 会话依赖 | [/backend/app/db/deps.py](../backend/app/db/deps.py) | FastAPI `DbSession` 依赖注入 |
 | COS 存储 | [/backend/app/storage/cos_client.py](../backend/app/storage/cos_client.py) | 腾讯云 COS 客户端封装与连通检查 |
@@ -45,6 +45,7 @@
 | 基础布局 | [/frontend/src/layouts/BasicLayout.tsx](../frontend/src/layouts/BasicLayout.tsx) | antd Layout：侧边菜单 + 顶栏 + `Outlet` 内容区 |
 | 首页 | [/frontend/src/pages/HomePage.tsx](../frontend/src/pages/HomePage.tsx) | 欢迎页与功能入口卡片 |
 | 构建配置 | [/frontend/vite.config.ts](../frontend/vite.config.ts) | Vite + @vitejs/plugin-react |
+| API 客户端生成 | [/frontend/openapi-ts.config.ts](../frontend/openapi-ts.config.ts) | OpenAPI 输入与 `src/client/` 生成配置 |
 | 依赖锁定 | [/frontend/package-lock.json](../frontend/package-lock.json) | npm 锁文件，**必须提交**以保证可复现安装 |
 
 ## 规划中的文档（待补充）

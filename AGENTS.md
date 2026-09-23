@@ -11,7 +11,7 @@ AI 代理在本仓库工作前必读。本文件是**总索引**：全局约束�
 
 ## 项目定位
 
-AI 企业 RAG 知识库「问津」：`backend/` FastAPI 异步后端，`frontend/` React + Ant Design 前端，PostgreSQL + pgvector 向量检索，腾讯云 COS 存原始文档。核心链路（采集 → 切分 → 向量化 → 检索 → 问答）建设中。
+AI RAG 知识库「问津」：`backend/` 为 FastAPI 异步后端，`frontend/` 为 React + Ant Design 前端。当前已搭建健康检查、数据库与 COS 连通检查；采集 → 切分 → 向量化 → 检索 → 问答链路尚在建设中。
 
 ## 分层约束索引
 
@@ -24,7 +24,7 @@ AI 企业 RAG 知识库「问津」：`backend/` FastAPI 异步后端，`fronten
 ## 全局工程约定
 
 - 注释、提交信息、文档统一使用**简体中文**。
-- **文档实时同步（强制）**：模块增删改须在同一变更中更新 `docs/INDEX.md` 对应条目；结构/命令/约定变化时同步各级 README 与 AGENTS 文档。禁止文档滞后于代码。
+- **文档实时同步（强制）**：模块增删改须在同一变更中更新 `docs/INDEX.md` 对应条目；结构、命令或约定变化时同步受影响的 README 与 AGENTS 文档。
 - **安全红线**：`.env` 及任何凭据不得进入 Git 历史或接口/日志输出；不提交 `.idea/`、`.venv/`、`node_modules/`、`.workbuddy/` 等本地产物；`frontend/package-lock.json` 必须提交。
 
 ## 仓库结构速查
