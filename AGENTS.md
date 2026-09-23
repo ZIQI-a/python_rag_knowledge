@@ -1,54 +1,38 @@
-# AGENTS.md — AI 编码代理工作指南
+# AGENTS.md — 项目总索引与全局约束
 
-本仓库中工作的 AI 代理须遵守以下约定，动手改代码前请先读完。
+AI 代理在本仓库工作前必读。本文件是**总索引**：全局约束在此；前后端细节约束按需读取对应子文档，不要全量读取无关内容。
+
+## 行为准则（最高优先级）
+
+1. **只改明确让改的文件**：未被提及的文件一律不碰。
+2. **不做多余操作**：不自行新增文件、不自行修改代码、不自行执行重构或"优化"。
+3. **Git 只在明确要求时提交**：未明确让提交，改完即停，不执行 `git add` / `git commit`。
+4. 拿不准时先问，不要自行假设需求。
 
 ## 项目定位
 
-AI 企业 RAG 知识库：`backend/` 为 FastAPI 异步后端，`frontend/` 为 React 前端，PostgreSQL + pgvector 做向量检索，腾讯云 COS 存原始文档。核心链路（采集 → 切分 → 向量化 → 检索 → 问答）仍在建设中。
+AI 企业 RAG 知识库「问津」：`backend/` FastAPI 异步后端，`frontend/` React + Ant Design 前端，PostgreSQL + pgvector 向量检索，腾讯云 COS 存原始文档。核心链路（采集 → 切分 → 向量化 → 检索 → 问答）建设中。
 
-## 常用命令
+## 分层约束索引
 
-```bash
-docker compose up -d                 # 根目录：启动 PostgreSQL + pgvector
-# 后端（backend/ 下）
-uv sync                              # 安装依赖
-uv run uvicorn app.main:app --reload # 开发启动
-uv run alembic upgrade head          # 应用迁移；revision --autogenerate 生成迁移
-# 前端（frontend/ 下）
-npm install && npm run dev           # 开发启动；npm run build / lint 构建与检查
-```
-
-## 工程约定
-
-1. **配置**：统一走根目录 `.env`，由 `app/core/config.py` 的 `Settings` 读取；新增配置项同步声明到 `Settings` 和 `.env.example`。
-2. **异步**：DB 用 `sqlalchemy[asyncio]` + `asyncpg`；阻塞调用（如 COS SDK）用 `asyncio.to_thread` 包装。
-3. **会话**：一律经 `app/db/deps.py` 的 `DbSession` 注入，禁止自建引擎/会话。
-4. **模型变更必须走 Alembic**，生成并提交迁移脚本，禁止手工改库。
-5. **异常**：业务异常继承 `app/core/exceptions.py` 基类，由 `error_handlers.py` 统一转响应，禁止吞异常。
-6. **日志**：统一 `get_logger(__name__)`，禁止 `print`。
-7. **注释与提交信息用简体中文**。
-8. **接口**：路由挂 `/api` 前缀，显式声明 `operation_id` 与 `response_model`。
-
-## 安全红线
-
-- `.env` 及任何凭据（COS 密钥、数据库密码）不得进入 Git 历史或接口/日志输出。
-- 不提交 `.idea/`、`.venv/`、`__pycache__/`、`node_modules/`、`.workbuddy/` 等本地产物。
-
-## 文档实时同步（强制）
-
-**代码变更与文档更新同属一个提交，不允许先改代码后补文档。**
-
-- 增删/重构模块（后端路由、模型、前端页面组件、基础设施）时，同提交更新 `docs/INDEX.md` 对应条目；目录结构、技术栈、命令变化时同步更新各级 `README.md`；约定变化时同步本文件。
-- 新增配置项时同步 `.env.example`。
-- 提交前自查 `git diff --name-only`：每个增删的模块都应有对应文档更新。
-- 文档必须与代码现状一致，禁止保留失效链接或命令。
-
-## 目录速查
-
-| 要做什么 | 去哪里 |
+| 工作范围 | 需读取的约束文档 |
 | --- | --- |
-| 新增 API 端点 | `backend/app/api/routes/` |
-| 新增/修改数据模型 | `backend/app/db/base.py` + `backend/alembic/` |
-| 新增配置项 | `backend/app/core/config.py` + `.env.example` |
-| 文件存储 | `backend/app/storage/cos_client.py` |
-| 文档索引 | `docs/INDEX.md` |
+| 跨端 / 基础设施 / 文档 | 仅本文件 |
+| 后端开发 | [backend/AGENTS.md](backend/AGENTS.md) |
+| 前端开发 | [frontend/AGENTS.md](frontend/AGENTS.md) |
+
+## 全局工程约定
+
+- 注释、提交信息、文档统一使用**简体中文**。
+- **文档实时同步（强制）**：模块增删改须在同一变更中更新 `docs/INDEX.md` 对应条目；结构/命令/约定变化时同步各级 README 与 AGENTS 文档。禁止文档滞后于代码。
+- **安全红线**：`.env` 及任何凭据不得进入 Git 历史或接口/日志输出；不提交 `.idea/`、`.venv/`、`node_modules/`、`.workbuddy/` 等本地产物；`frontend/package-lock.json` 必须提交。
+
+## 仓库结构速查
+
+```
+backend/            # FastAPI 后端（约束见 backend/AGENTS.md）
+frontend/           # React 前端（约束见 frontend/AGENTS.md）
+docs/               # 项目文档索引（docs/INDEX.md）
+docker-compose.yml  # 本地 PostgreSQL 16 + pgvector
+.env.example        # 环境变量模板（真实值写入 .env，不入库）
+```

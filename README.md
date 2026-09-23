@@ -50,4 +50,4 @@ npm install && npm run dev
 ## 文档
 
 - 文档导航：[docs/INDEX.md](docs/INDEX.md)
-- AI 代理工程约定：[AGENTS.md](AGENTS.md)
+- AI 代理约束：[AGENTS.md](AGENTS.md)（总索引与全局约束，前后端细节见各自目录下的 AGENTS.md）

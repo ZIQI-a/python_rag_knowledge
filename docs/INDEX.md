@@ -7,7 +7,9 @@
 | 文档 | 位置 | 说明 |
 | --- | --- | --- |
 | 项目 README | [/README.md](../README.md) | 简介、技术栈、目录结构、快速开始 |
-| 代理工作指南 | [/AGENTS.md](../AGENTS.md) | AI 代理工程约定、命令与安全红线 |
+| 代理总索引 | [/AGENTS.md](../AGENTS.md) | AI 代理全局约束（行为准则、安全红线）与分层索引 |
+| 后端约束 | [/backend/AGENTS.md](../backend/AGENTS.md) | 后端命令与工程约定（仅后端开发时读取） |
+| 前端约束 | [/frontend/AGENTS.md](../frontend/AGENTS.md) | 前端命令与工程约定（仅前端开发时读取） |
 | 后端 README | [/backend/README.md](../backend/README.md) | 后端模块说明与开发指引 |
 | 前端 README | [/frontend/README.md](../frontend/README.md) | 前端工程说明（Vite 脚手架自带） |
 
