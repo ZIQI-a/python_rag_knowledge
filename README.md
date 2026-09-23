@@ -9,7 +9,7 @@
 | 后端 | Python 3.14 · FastAPI · SQLAlchemy 2.0 (async) · Alembic |
 | 数据库 | PostgreSQL 16 + pgvector |
 | 对象存储 | 腾讯云 COS |
-| 前端 | React 19 · TypeScript · Vite |
+| 前端 | React 19 · TypeScript · Vite · Ant Design · React Router |
 | 包管理 | 后端 uv · 前端 npm |
 
 ## 项目结构

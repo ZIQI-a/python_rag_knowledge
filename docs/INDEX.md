@@ -38,8 +38,10 @@
 
 | 模块 | 位置 | 说明 |
 | --- | --- | --- |
-| 应用入口 | [/frontend/src/main.tsx](../frontend/src/main.tsx) | React 根组件挂载 |
-| 根组件 | [/frontend/src/App.tsx](../frontend/src/App.tsx) | 当前为 Vite 脚手架示例页，待替换为业务页面 |
+| 应用入口 | [/frontend/src/main.tsx](../frontend/src/main.tsx) | React 挂载，接入 antd `ConfigProvider`（zhCN）与路由 |
+| 路由定义 | [/frontend/src/router.tsx](../frontend/src/router.tsx) | `createBrowserRouter`，`/` 挂载 BasicLayout |
+| 基础布局 | [/frontend/src/layouts/BasicLayout.tsx](../frontend/src/layouts/BasicLayout.tsx) | antd Layout：侧边菜单 + 顶栏 + `Outlet` 内容区 |
+| 首页 | [/frontend/src/pages/HomePage.tsx](../frontend/src/pages/HomePage.tsx) | 欢迎页与功能入口卡片 |
 | 构建配置 | [/frontend/vite.config.ts](../frontend/vite.config.ts) | Vite + @vitejs/plugin-react |
 | 依赖锁定 | [/frontend/package-lock.json](../frontend/package-lock.json) | npm 锁文件，**必须提交**以保证可复现安装 |
 
