@@ -22,6 +22,17 @@ class Settings(BaseSettings):
     cos_region: str = ""
     cos_bucket: str = ""
     cors_origins: str = ""
+    # Embedding模型
+    ai_base_url: str = "http://127.0.0.1:8000"
+    ai_api_key: str = ""
+    embedding_model: str = "qwen3.7-text-embedding-flash"
+    embedding_dim: int = 1024
+    embedding_batch_size: int = 10
+
+    # 文档上传与拆分
+    upload_max_size_mb: int = 50
+    chunk_size: int = 600
+    chunk_overlap: int = 60
 
     @property
     def cos_configured(self) -> bool:
