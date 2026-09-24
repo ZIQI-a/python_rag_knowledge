@@ -1,4 +1,7 @@
-""" 使用Docling开源插件对文档进行解析 """
+"""
+第一步：文档解析
+使用Docling开源插件对文档进行解析
+"""
 import asyncio
 import io
 
