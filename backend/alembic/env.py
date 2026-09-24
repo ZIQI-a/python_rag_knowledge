@@ -10,7 +10,7 @@ from alembic import context
 from app.core.config import settings
 from app.db.base import Base
 # 加载文档模型，确保自动迁移能读取两张表的元数据。
-from app.db import Document
+from app.db import models
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

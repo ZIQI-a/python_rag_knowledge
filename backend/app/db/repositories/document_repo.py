@@ -4,8 +4,7 @@ from uuid import UUID
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.Document import Document
-from app.db.models import DocumentStatus
+from app.db.models import Document, DocumentStatus
 
 
 class DocumentRepository:

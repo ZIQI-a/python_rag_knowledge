@@ -32,8 +32,7 @@
 | 日志体系 | [/backend/app/core/logging.py](../backend/app/core/logging.py) | `configure_logging` / `get_logger` |
 | 异常定义 | [/backend/app/core/exceptions.py](../backend/app/core/exceptions.py) | 业务异常基类（如 `ConfigurationError`） |
 | 数据模型基类 | [/backend/app/db/base.py](../backend/app/db/base.py) | SQLAlchemy `Base` |
-| 文档模型 | [/backend/app/db/Document.py](../backend/app/db/Document.py) | `Document`、`DocumentChunk` 表模型 |
-| 文档状态 | [/backend/app/db/models.py](../backend/app/db/models.py) | `DocumentStatus` 生命周期枚举 |
+| 数据模型 | [/backend/app/db/models.py](../backend/app/db/models.py) | `DocumentStatus` 枚举及 `Document`、`DocumentChunk` 表模型 |
 | 会话管理 | [/backend/app/db/session.py](../backend/app/db/session.py) | 异步引擎与 `AsyncSessionLocal` 工厂 |
 | 会话依赖 | [/backend/app/db/deps.py](../backend/app/db/deps.py) | FastAPI `DbSession` 依赖注入 |
 | COS 存储 | [/backend/app/storage/cos_client.py](../backend/app/storage/cos_client.py) | 腾讯云 COS 客户端封装与连通检查 |

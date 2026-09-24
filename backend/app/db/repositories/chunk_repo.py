@@ -6,7 +6,7 @@ from uuid import UUID
 from sqlalchemy import delete, select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.Document import DocumentChunk
+from app.db.models import DocumentChunk
 
 
 # 单个文档下的chunk长度统计
