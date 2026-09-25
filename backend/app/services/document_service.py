@@ -78,8 +78,9 @@ class DocumentService:
         """一、校验文件"""
         mime_type, suffix = _resolve_mime_and_suffix(file)
 
-        content = await file.read()
         max_bytes = settings.upload_max_size_mb * 1024 * 1024
+        # 多读一个字节即可识别超限文件，避免把整个大文件读入内存。
+        content = await file.read(max_bytes + 1)
         if len(content) == 0:
             raise ValidationError("上传文件内容为空")
         if len(content) > max_bytes:
@@ -118,6 +119,7 @@ class DocumentService:
 
     # 获取文档
     async def get(self, document_id: UUID) -> Document:
+        """读取文档，并将不存在的结果转换为业务异常。"""
         doc = await self.repo.get_by_id(document_id)
         if doc is None:
             raise NotFoundError(f"文档不存在: {document_id}")
@@ -130,9 +132,7 @@ class DocumentService:
 
     # 删除文档
     async def delete(self, document_id: UUID) -> None:
-        doc = await self.repo.get_by_id(document_id)
-        if doc is None:
-            raise NotFoundError(f"要删除的文档不存在: {document_id}")
+        doc = await self.get(document_id)
         if doc.status not in _DELETABLE_STATUSES:
             raise ValidationError(f"当前文档正在处理中，请稍后: {doc.status}")
 
@@ -146,9 +146,7 @@ class DocumentService:
 
     # 失败后重试操作
     async def retry(self, document_id: UUID, background_tasks: BackgroundTasks) -> Document:
-        doc = await self.repo.get_by_id(document_id)
-        if doc is None:
-            raise NotFoundError(f"文档不存在: {document_id}")
+        doc = await self.get(document_id)
         if doc.status != DocumentStatus.FAILED:
             raise ValidationError(f"当前文档状态不是失败状态，无法重试: {doc.status}")
         # 防御性清理
@@ -182,4 +180,3 @@ class DocumentService:
         if chunk is None:
             raise NotFoundError(f"文档Chunk不存在: {document_id} {chunk_id}")
         return chunk
-

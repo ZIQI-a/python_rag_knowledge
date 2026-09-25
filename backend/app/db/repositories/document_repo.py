@@ -31,13 +31,15 @@ class DocumentRepository:
 
     # 更新文档状态
     async def update_status(self, document_id: UUID, status: DocumentStatus, *,
-                            error_message: str | None = None) -> Document:
-        doc = self.get_by_id(document_id)
+                            error_message: str | None = None) -> Document | None:
+        """读取并更新文档状态，文档不存在时返回 None。"""
+        doc = await self.get_by_id(document_id)
         if doc is None:
-            return
+            return None
         doc.status = status
         if error_message is not None or status != DocumentStatus.FAILED:
             doc.error_message = error_message
+        return doc
 
     # 删除指定的文档
     async def delete(self, document: Document) -> None:
