@@ -70,7 +70,7 @@ class DocumentChunkRepository:
             DocumentChunk.id == chunk_id, DocumentChunk.document_id == document_id)
         return (await self.session.execute(stmt)).scalar_one_or_none()
 
-    async def get_status(self, docuemnt_id: UUID) -> ChunkStats | None:
+    async def get_status(self, document_id: UUID) -> ChunkStats | None:
         length = func.char_length(DocumentChunk.content)
         stmt = (
             select(
@@ -78,7 +78,7 @@ class DocumentChunkRepository:
                 func.avg(length).label("avg_len"),
                 func.min(length).label("min_len"),
                 func.max(length).label("max_len")
-            ).where(DocumentChunk.document_id == docuemnt_id)
+            ).where(DocumentChunk.document_id == document_id)
         )
         row = (await self.session.execute(stmt)).one()
         if not row.total:

@@ -27,3 +27,8 @@ class PermissionDeniedError(AppException):
     code = "permission_denied"
     message = "无法访问该资源"
     http_status = HTTPStatus.FORBIDDEN
+
+class ValidationError(AppException):
+    code = "validation_error"
+    message = "参数校验失败"
+    http_status = HTTPStatus.BAD_REQUEST
