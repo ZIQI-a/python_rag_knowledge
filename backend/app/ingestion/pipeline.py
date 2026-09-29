@@ -41,7 +41,7 @@ async def ingest_document(document_id: UUID) -> None:
 
         # 开始执行第二步，切分文档
         await _set_status(document_id, DocumentStatus.INDEXING)
-        chunks = await splitter.split(documents)
+        chunks = splitter.split(documents)
         if not chunks:
             raise ValueError("切分后文档为空")
 
