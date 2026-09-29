@@ -14,8 +14,7 @@ const menuItems = [
     {
         key: '/documents',
         icon: <FileTextOutlined />,
-        label: '文档管理',
-        disabled: true
+        label: <Link to={'/documents'}>文档管理</Link>,
     },
     {
         key: '/chat',
@@ -25,8 +24,16 @@ const menuItems = [
     },
 ]
 
+// 使选中的菜单保持高亮
+function resolveSelectedKey(pathname: string): string {
+    if(pathname.startsWith('/documents')) return '/documents';
+    if(pathname.startsWith('/chat')) return '/chat';
+    return '/'
+}
+
 export function BasicLayout() {
     const location = useLocation();
+    const selectedKey = resolveSelectedKey(location.pathname)
 
     return (
         <Layout style={{minHeight: '100vh'}}>
@@ -45,7 +52,7 @@ export function BasicLayout() {
                 <Menu
                     mode={'inline'}
                     theme={'dark'}
-                    selectedKeys={[location.pathname]}
+                    selectedKeys={[selectedKey]}
                     items={menuItems}
                 />
             </Sider>
