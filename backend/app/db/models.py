@@ -37,6 +37,7 @@ class DocumentStatus(str, Enum):
     FAILED = "failed"
 
 
+# 文档表
 class Document(Base):
     __tablename__ = "documents"
 
@@ -70,6 +71,7 @@ class Document(Base):
         back_populates="document", cascade="all, delete-orphan", passive_deletes=True
     )
 
+# 文档切片
 class DocumentChunk(Base):
     __tablename__ = "document_chunks"
 
@@ -95,3 +97,85 @@ class DocumentChunk(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     document: Mapped[Document] = relationship(back_populates="chunks")
+
+"""会话表,存储具体的历史会话信息"""
+# 枚举值，用户、AI和系统提示词
+class MessageRole(str, Enum):
+    USER = "user"
+    ASSISTANT = "assistant"
+    SYSTEM = "system"
+
+class Conversation(Base):
+    __tablename__ = "conversations"
+
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    title: Mapped[str] = mapped_column(String(256), nullable=False, default="新对话")
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False
+    )
+    messages: Mapped[list["Message"]] = relationship(
+        back_populates="conversation",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        order_by="Message.created_at",
+    )
+
+""" 消息表 """
+class Message(Base):
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    conversation_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("conversations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+    role: Mapped[MessageRole] = mapped_column(String(16), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    extra_metadata: Mapped[dict] = mapped_column("metadata", JSONB, nullable=False, default=dict)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    conversation: Mapped[Conversation] = relationship(back_populates="messages")
+    citations: Mapped[list["AnswerCitation"]] = relationship(
+        back_populates="message",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        order_by="AnswerCitation.ordinal",
+    )
+
+""" 用于消息引用的Chunk快照,避免原来的引用被删除，在历史记录中展示 """
+class AnswerCitation(Base):
+    __tablename__ = "answer_citations"
+
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    message_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("messages.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+    # 给大模型看的片段编号，从 1 开始
+    ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
+    document_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("documents.id", ondelete="SET NULL"),
+        nullable=True
+    )
+    chunk_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("document_chunks.id", ondelete="SET NULL"),
+        nullable=True
+    )
+    document_name: Mapped[str] = mapped_column(String(512), nullable=False)
+    page_no: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    quote: Mapped[str] = mapped_column(Text, nullable=False)
+
+    message: Mapped[Message] = relationship(back_populates="citations")

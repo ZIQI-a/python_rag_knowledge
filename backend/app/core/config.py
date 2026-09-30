@@ -34,6 +34,13 @@ class Settings(BaseSettings):
     chunk_size: int = 600
     chunk_overlap: int = 60
 
+    # 检索问答相关配置
+    chat_model_name: str = ""
+    retrieval_top_k: int = 5 # 传给前5个chunk
+    retrieval_min_score: float = 0.6 # 最小分数
+    chat_history_window: int = 5 # 多轮窗口
+
+
     @property
     def cos_configured(self) -> bool:
         return bool(self.cos_secret_id and self.cos_secret_key and self.cos_bucket)
