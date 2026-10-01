@@ -1,0 +1,1 @@
+""" 把 query → embedding → pgvector Top-K 这条链路封装 """
