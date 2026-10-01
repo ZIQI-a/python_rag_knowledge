@@ -129,6 +129,8 @@ class Conversation(Base):
 
 """ 消息表 """
 class Message(Base):
+    __tablename__ = "messages"
+
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
     conversation_id: Mapped[UUID] = mapped_column(
         PGUUID(as_uuid=True),
