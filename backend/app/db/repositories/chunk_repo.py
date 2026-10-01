@@ -4,9 +4,10 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from sqlalchemy import delete, select, func
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import DocumentChunk
+from app.db.models import DocumentChunk, Document
 
 
 # 单个文档下的chunk长度统计
@@ -89,3 +90,21 @@ class DocumentChunkRepository:
             min_length=int(row.min_len or 0),
             max_length=int(row.max_len or 0)
         )
+
+    # 向量搜索(基于余弦距离向量相似度)
+    async def vector_search(self, query_embedding: list[float], top_k: int
+                            ) -> list[tuple[DocumentChunk, float]]:
+        distance = DocumentChunk.embedding.cosine_distance(query_embedding)
+        stmt = (
+            select(DocumentChunk, distance.label("distance"))
+            .join(Document, Document.id == DocumentChunk.document_id)
+            .where(Document.status == 'ready')
+            .order_by(distance.asc())
+            .limit(top_k)
+            .options(selectinload(DocumentChunk.document))
+        )
+        rows = (await self.session.execute(stmt)).all()
+        return [(chunk, float(dist)) for chunk, dist in rows]
+
+
+
