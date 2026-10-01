@@ -82,4 +82,4 @@ def build_answer_messages(
     )
     return list(prompt_value.to_messages())
 
-REFUAL_ANSWER = "抱歉，知识库中没有找到相关信息。"
+REFUSAL_ANSWER = "抱歉，知识库中没有找到相关信息。"
