@@ -27,6 +27,8 @@ import {getStatusColor, getStatusLabel, isTerminalStatus} from "@/utils/document
 import {buildDocumentFileUrl, canPreviewInline, isHtmlMime, isMarkdownMime, isPdfMime} from "@/utils/documentFile.ts";
 import {ArrowLeftOutlined, DeleteOutlined, DownloadOutlined, EyeOutlined, ReloadOutlined} from "@ant-design/icons";
 import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import {gfmComponents} from "@/components/markdownComponents.tsx";
 
 
 const {Title, Text, Paragraph} = Typography
@@ -92,7 +94,7 @@ function MarkdownPreview({url}: {url: string}) {
     if(content === null) return <Skeleton active />
     return (
         <div style={{ padding: 16, maxHeight: 600, overflow: 'auto' }}>
-            <Markdown>{content}</Markdown>
+            <Markdown remarkPlugins={[remarkGfm]} components={gfmComponents}>{content}</Markdown>
         </div>
     )
 }
