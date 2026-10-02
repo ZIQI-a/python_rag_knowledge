@@ -17,6 +17,93 @@ export type BodyUploadDocument = {
 };
 
 /**
+ * ChatRequest
+ */
+export type ChatRequest = {
+    /**
+     * Question
+     */
+    question: string;
+};
+
+/**
+ * CitationRead
+ */
+export type CitationRead = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Ordinal
+     */
+    ordinal: number;
+    /**
+     * Chunk Id
+     */
+    chunk_id?: string | null;
+    /**
+     * Document Id
+     */
+    document_id?: string | null;
+    /**
+     * Document Name
+     */
+    document_name: string;
+    /**
+     * Page No
+     */
+    page_no?: number | null;
+    /**
+     * Quote
+     */
+    quote: string;
+};
+
+/**
+ * ConversationCreate
+ */
+export type ConversationCreate = {
+    /**
+     * Title
+     */
+    title?: string;
+};
+
+/**
+ * ConversationDetail
+ */
+export type ConversationDetail = {
+    conversation: ConversationRead;
+    /**
+     * Messages
+     */
+    messages: Array<MessageRead>;
+};
+
+/**
+ * ConversationRead
+ */
+export type ConversationRead = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Title
+     */
+    title: string;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Updated At
+     */
+    updated_at: string;
+};
+
+/**
  * DocumentChunkDetail
  */
 export type DocumentChunkDetail = {
@@ -223,6 +310,32 @@ export type HealthStatus = {
      * Detail
      */
     detail?: string | null;
+};
+
+/**
+ * MessageRead
+ */
+export type MessageRead = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Role
+     */
+    role: 'user' | 'assistant' | 'system';
+    /**
+     * Content
+     */
+    content: string;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Citations
+     */
+    citations?: Array<CitationRead>;
 };
 
 /**
@@ -563,3 +676,86 @@ export type GetDocumentChunkResponses = {
 };
 
 export type GetDocumentChunkResponse = GetDocumentChunkResponses[keyof GetDocumentChunkResponses];
+
+export type CreateConversationData = {
+    body: ConversationCreate;
+    path?: never;
+    query?: never;
+    url: '/api/conversations';
+};
+
+export type CreateConversationErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateConversationError = CreateConversationErrors[keyof CreateConversationErrors];
+
+export type CreateConversationResponses = {
+    /**
+     * Successful Response
+     */
+    201: ConversationRead;
+};
+
+export type CreateConversationResponse = CreateConversationResponses[keyof CreateConversationResponses];
+
+export type GetConversationData = {
+    body?: never;
+    path: {
+        /**
+         * Conversation Id
+         */
+        conversation_id: string;
+    };
+    query?: never;
+    url: '/api/conversations/{conversation_id}';
+};
+
+export type GetConversationErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetConversationError = GetConversationErrors[keyof GetConversationErrors];
+
+export type GetConversationResponses = {
+    /**
+     * Successful Response
+     */
+    200: ConversationDetail;
+};
+
+export type GetConversationResponse = GetConversationResponses[keyof GetConversationResponses];
+
+export type StreamChatData = {
+    body: ChatRequest;
+    path: {
+        /**
+         * Conversation Id
+         */
+        conversation_id: string;
+    };
+    query?: never;
+    url: '/api/conversations/{conversation_id}/chat';
+};
+
+export type StreamChatErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type StreamChatError = StreamChatErrors[keyof StreamChatErrors];
+
+export type StreamChatResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
