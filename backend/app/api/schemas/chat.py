@@ -1,5 +1,5 @@
 """ 知识库问答请求和响应模型 """
-import datetime
+from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
