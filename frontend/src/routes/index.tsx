@@ -3,6 +3,7 @@ import {BasicLayout} from "@/layouts/BasicLayout.tsx";
 import {HomePage} from "@/pages/HomePage.tsx";
 import {DocumentsPage} from "@/pages/DocumentsPage.tsx";
 import {DocumentDetailPage} from "@/pages/DocumentDetailPage.tsx";
+import {ChatPage} from "@/pages/ChatPage.tsx";
 
 
 export const router = createBrowserRouter([
@@ -12,7 +13,8 @@ export const router = createBrowserRouter([
         children: [
             { index: true, element: <HomePage /> },
             { path: 'documents', element: <DocumentsPage /> },
-            { path: 'documents/:id', element: <DocumentDetailPage /> }
+            { path: 'documents/:id', element: <DocumentDetailPage /> },
+            { path: 'chat', element: <ChatPage />}
         ],
     },
 ])
