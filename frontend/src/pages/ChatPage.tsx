@@ -52,6 +52,7 @@ export function ChatPage() {
     // 待发送的消息（只放在前端state结束后，由历史接口返回正式ID）
     const [pendingMessages, setPendingMessages] = useState<UiMessage[]>([])
     const [isStreaming, setIsStreaming] = useState(false)
+    const initialConversationRequested = useRef(false)
     // 中断控制器
     const abortRef = useRef<AbortController | null>(null)
     // 滚动容器
@@ -71,11 +72,14 @@ export function ChatPage() {
         }
     })
     // 没有Conversation ID时创建一个
+    const createConversationMutate = createMutation.mutate
     useEffect(() => {
-        if(!conversationId && !createMutation.isPending) {
-            createMutation.mutate()
+        if(!conversationId && !initialConversationRequested.current) {
+            // 严格模式下 effect 可能重复执行，只创建一次初始会话。
+            initialConversationRequested.current = true
+            createConversationMutate()
         }
-    }, [conversationId])
+    }, [conversationId, createConversationMutate])
 
     // 拉取历史消息
     const historyQuery = useQuery({
@@ -272,10 +276,10 @@ export function ChatPage() {
 // 将回答的引用编号改写成Markdown Hash链接
 function linkifyCitations(content: string, maxIndex: number, messageId: string): string{
     if(maxIndex <= 0) return content;
-    return content.replace(/[(\d+)]/g, (raw, num: string) => {
+    return content.replace(/\[(\d+)\]/g, (raw, num: string) => {
         const n = Number(num)
         if(n < 1 || n > maxIndex) return raw
-        return `[[${n}]](${CITATION_HASH_PREFIX}${messageId}-${n}}`
+        return `[[${n}]](${CITATION_HASH_PREFIX}${messageId}-${n})`
     })
 }
 // 创建Markdown组件，处理引用点击事件
@@ -309,8 +313,13 @@ interface MessageBubbleProps {
 function MessageBubble({message}: MessageBubbleProps) {
     const isUser = message.role === 'user'
     const citationRef = useRef<CitationListHandle>(null)
+    const [selectedCitation, setSelectedCitation] = useState<{n: number} | null>(null)
+    // 点击时记录引用编号，渲染完成后再操作引用面板。
+    useEffect(() => {
+        if (selectedCitation) citationRef.current?.expandAndScroll(selectedCitation.n)
+    }, [selectedCitation])
     const components = useMemo(
-        () => createMarkdownComponents((n) => citationRef.current?.expandAndScroll(n)),
+        () => createMarkdownComponents((n) => setSelectedCitation({n})),
         [],
     )
     const renderedContent = useMemo(
