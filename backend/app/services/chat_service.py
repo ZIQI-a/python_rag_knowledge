@@ -11,7 +11,7 @@ from app.db.repositories.citation_repo import AnswerCitationRepository
 from app.db.session import AsyncSessionLocal
 from app.retrieval.vector_retriever import RetrievedChunk
 from app.db.repositories.conversation_repo import ConversationRepository
-from app.workflows.nodes import load_context, normalize_query, retrieve, stream_generate
+from app.workflows.nodes import load_context, normalize_query, retrieve, stream_generate, route_query
 from app.workflows.rag_state import RAGState
 
 # 导入日志模块
@@ -28,6 +28,16 @@ def _serialize_citation(chunk: RetrievedChunk, ordinal: int) -> dict:
         "section_path": chunk.section_path,
         "score": round(chunk.score, 4),
         "quote": chunk.content
+    }
+
+# SSE\metadata共用的query router荷载格式
+def _build_query_route_payload(state: RAGState) -> dict:
+    return {
+        "route": state.get("route", "original"),
+        "query": state.get("query", ""),
+        "rewritten_query": state.get("rewritten_query"),
+        "hyde_answer": state.get("hyde_answer"),
+        "multi_queries": state.get("multi_queries"),
     }
 
 class ChatService:
@@ -69,9 +79,10 @@ class ChatService:
                     "question": question,
                 }
 
-                # 1 加载上下文（仅历史消息)
+                # 1 加载上下文（仅历史消息), 加载路由
                 state.update(await load_context(state, session))
                 state.update(await normalize_query(state))
+                state.update(await route_query(state))
 
                 # 2 用户的消息写入数据库
                 await self._persist_user_message(state, session)
@@ -79,6 +90,11 @@ class ChatService:
                 yield {
                     "event": "message_start",
                     "data": {"user_message_id": str(state["user_message_id"])},
+                }
+                # 把query流结果推送到前端,前端通过Router选择
+                yield {
+                    "event": "query_route",
+                    "data": _build_query_route_payload(state)
                 }
 
                 # 3 retrieve,搜索分析含距达判定，先把引用放在前端，让资料面板可见
@@ -147,7 +163,11 @@ class ChatService:
         assistant_msg = ConversationRepository.make_assistant_message(
             state["conversation_id"],
             content=state["answer"],
-            extra_metadata={"refused": bool(state.get("refused"))}
+            # 把query流结果持久化到meta data字段，即使刷新时前端还能继续展示
+            extra_metadata={
+                "refused": bool(state.get("refused")),
+                "query_route": _build_query_route_payload(state)
+            }
         )
         await conv_repo.add_message([assistant_msg])
 

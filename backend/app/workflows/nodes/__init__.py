@@ -8,5 +8,6 @@ __all__ = [
     "load_context",
     "normalize_query",
     "retrieve",
-    "stream_generate"
+    "stream_generate",
+    "route_query"
 ]
