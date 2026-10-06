@@ -1,7 +1,7 @@
 // 对话页面
 
 import {Input, Typography, Alert, Avatar, Button, Empty, Space, Spin, message as antdMessage} from "antd";
-import {type CitationRead, createConversation, getConversation, type MessageRead} from "@/client";
+import {type CitationRead, createConversation, getConversation, type MessageRead, type QueryRouteRead} from "@/client";
 import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
 import React, {useEffect, useMemo, useRef, useState} from "react";
 import type {ChatStreamEvent} from "@/api/chatStream.ts";
@@ -12,6 +12,7 @@ import {gfmComponents} from "@/components/markdownComponents.tsx";
 import {CitationList, type CitationListHandle} from "@/components/CitationList.tsx";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import {QueryRoutePanel} from "@/components/QueryRoutePanel.tsx";
 
 const {Title, Paragraph, Text} = Typography
 const {TextArea} = Input
@@ -26,6 +27,7 @@ interface UiMessage {
     role: 'user' | 'assistant'
     content: string
     citations: CitationRead[]
+    queryRoute: QueryRouteRead | null // Query路由策略
     status?: AssistantStatus
     error?: string | null
 }
@@ -36,6 +38,7 @@ function fromServerMessage(m: MessageRead): UiMessage {
         id: m.id,
         role: m.role === 'user' ? 'user' : 'assistant',
         content: m.content,
+        queryRoute: m.query_route ?? null,
         citations: m.citations ?? [],
         status: 'done',
     }
@@ -168,6 +171,9 @@ export function ChatPage() {
                 onEvent: (event: ChatStreamEvent) => {
                     switch (event.type) {
                         case "start":
+                            break
+                        case 'query_route':
+                            updateAssistant((prev) => ({ ...prev, queryRoute: event.queryRoute }))
                             break
                         case 'citations':
                             updateAssistant((prev) => ({ ...prev, citations: event.citations}))
@@ -362,6 +368,9 @@ function MessageBubble({message}: MessageBubbleProps) {
                     <Text type="secondary">
                         <Spin size="small"/>正在加速检索...
                     </Text>
+                ) : null}
+                {!isUser && message.queryRoute ? (
+                    <QueryRoutePanel queryRoute={message.queryRoute} />
                 ) : null}
                 {!isUser && message.citations.length > 0 ? (
                     <CitationList ref={citationRef} citations={message.citations} messageId={message.id} />
