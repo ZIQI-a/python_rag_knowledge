@@ -40,6 +40,12 @@ class Settings(BaseSettings):
     retrieval_min_score: float = 0.6 # 最小分数
     chat_history_window: int = 5 # 多轮窗口
 
+    # Query查询优化
+    # 是否开启Query查询，默认开启，关闭后只会使用original进行检索
+    query_route_enabled: bool = True
+    # 多重查询策略生成的子查询数量
+    multi_query_count: int = 3
+
 
     @property
     def cos_configured(self) -> bool:
