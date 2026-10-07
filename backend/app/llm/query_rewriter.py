@@ -1,5 +1,6 @@
 """ 路由查询策略优化后的统一返回结果 """
 from dataclasses import dataclass
+import re
 from typing import get_args
 
 from app.core.logging import get_logger
@@ -50,7 +51,11 @@ class QueryRewriter:
         messages = build_multi_query_messages(question, n)
         response = await get_chat_model().ainvoke(messages)
         text = _extract_text(response.content)
-        queries = [line.strip(" -•*0123456789.、") for line in text.splitlines()]
+        # 仅移除列表前缀，保留查询中的年份、编号和末尾数字。
+        queries = [
+            re.sub(r"^(?:[-•*]\s+|\d+[.、)]\s+)", "", line.strip()).strip()
+            for line in text.splitlines()
+        ]
         return [q for q in queries if q][:n]
 
     """ 统一入口 """
@@ -68,8 +73,9 @@ class QueryRewriter:
                 hyde_answer = await self.hyde(question)
                 if not hyde_answer:
                     return QueryRouteResult(route="original", query=question)
+                # 假设答案用于向量召回，原问题仍保留给最终回答节点。
                 return QueryRouteResult(
-                    route="hyde", query=question, hyde_answer=hyde_answer
+                    route="hyde", query=hyde_answer, hyde_answer=hyde_answer
                 )
             if route == "multi_query":
                 queries = await self.multi_query(question, multi_query_count)
@@ -96,4 +102,9 @@ def _extract_text(content: str | list[str | dict]) -> str:
     """ 兼容Langchain ChatModel的Content联合类型 """
     if isinstance(content, str):
         return content
-    return "".join(part.get("text", "") for part in content if isinstance(part, dict))
+    # 兼容字符串片段和文本块，避免字符串列表被丢弃后误降级。
+    return "".join(
+        part if isinstance(part, str) else part.get("text", "")
+        for part in content
+        if isinstance(part, (str, dict))
+    )

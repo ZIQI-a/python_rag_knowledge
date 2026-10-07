@@ -10,7 +10,7 @@ const { Paragraph, Text } = Typography
 const ROUTE_META: Record<QueryRouteRead['route'], { color: string; label: string; hint: string }> = {
     original: { color: 'default', label: 'Original', hint: '问题清晰，无需改写' },
     rewrite: { color: 'blue', label: 'Rewrite', hint: '问题已改写' },
-    hyde: { color: 'purple', label: 'HyDE', hint: '以生成假设答案用于检索' },
+    hyde: { color: 'purple', label: 'HyDE', hint: '已生成假设答案用于检索' },
     multi_query: { color: 'orange', label: 'Multi_Query', hint: '已扩展为多个子查询' },
 }
 
@@ -66,7 +66,7 @@ function RouteDetail({queryRoute}: { queryRoute: QueryRouteRead }) {
             )
         case 'multi_query':
             return (
-                <DetailRow label="子列表查询">
+                <DetailRow label="子查询列表">
                     <ol style={{ paddingInlineStart: 20, margin: 0, color: '#555' }}>
                         {(queryRoute.multi_queries ?? []).map((q, i) => (
                             <li key={i} style={{ marginBottom: 4 }}>
@@ -74,7 +74,6 @@ function RouteDetail({queryRoute}: { queryRoute: QueryRouteRead }) {
                             </li>
                         ))}
                     </ol>
-                    <Paragraph style={paragraphStyle}>{queryRoute.hyde_answer}</Paragraph>
                 </DetailRow>
             )
         default:
@@ -99,4 +98,3 @@ const paragraphStyle: React.CSSProperties = {
     marginBottom:0,
     color: '#555'
 }
-

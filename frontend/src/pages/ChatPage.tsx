@@ -148,6 +148,7 @@ export function ChatPage() {
             role: 'user',
             content: question,
             citations: [],
+            queryRoute: null,
             status: 'done'
         }
         const assistantMsg: UiMessage = {
@@ -155,6 +156,8 @@ export function ChatPage() {
             role: 'assistant',
             content: '',
             citations: [],
+            // 路由结果在 SSE query_route 事件到达后填充。
+            queryRoute: null,
             status: 'streaming'
         }
         setPendingMessages((prev) => [...prev, userMsg, assistantMsg])
@@ -354,7 +357,7 @@ function MessageBubble({message}: MessageBubbleProps) {
                 }}
             >
                 {message.error ? (
-                    <Alert type="error" message={message.error} style={{ marginBottom: 8 }} />
+                    <Alert type="error" title={message.error} style={{ marginBottom: 8 }} />
                 ) : null}
                 {message.content ? (
                     isUser ? (

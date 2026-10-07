@@ -35,6 +35,8 @@
 | 数据模型 | [/backend/app/db/models.py](../backend/app/db/models.py) | `DocumentStatus` 枚举及 `Document`、`DocumentChunk` 表模型 |
 | 会话管理 | [/backend/app/db/session.py](../backend/app/db/session.py) | 异步引擎与 `AsyncSessionLocal` 工厂 |
 | 会话依赖 | [/backend/app/db/deps.py](../backend/app/db/deps.py) | FastAPI `DbSession` 依赖注入 |
+| 工作流节点入口 | [/backend/app/workflows/nodes/__init__.py](../backend/app/workflows/nodes/__init__.py) | 显式导出上下文、查询规范化、查询路由、检索与流式生成函数，避免导入同名模块 |
+| 查询优化策略 | [/backend/app/llm/query_rewriter.py](../backend/app/llm/query_rewriter.py) | 原始查询、改写、HyDE 与多查询策略；HyDE 使用假设答案召回，兼容字符串及文本块响应，清理列表前缀时保留查询数字 |
 | COS 存储 | [/backend/app/storage/cos_client.py](../backend/app/storage/cos_client.py) | 腾讯云 COS 客户端封装与连通检查 |
 
 ## 前端模块
@@ -45,6 +47,8 @@
 | 路由定义 | [/frontend/src/routes/index.tsx](../frontend/src/routes/index.tsx) | `createBrowserRouter`，`/` 挂载 BasicLayout |
 | 基础布局 | [/frontend/src/layouts/BasicLayout.tsx](../frontend/src/layouts/BasicLayout.tsx) | antd Layout：侧边菜单 + 顶栏 + `Outlet` 内容区 |
 | 首页 | [/frontend/src/pages/HomePage.tsx](../frontend/src/pages/HomePage.tsx) | 欢迎页与功能入口卡片 |
+| 知识库问答页 | [/frontend/src/pages/ChatPage.tsx](../frontend/src/pages/ChatPage.tsx) | 流式问答、引用与查询路由展示；本地消息初始化空路由结果，错误提示使用 antd Alert 的 `title` 属性 |
+| 查询路由面板 | [/frontend/src/components/QueryRoutePanel.tsx](../frontend/src/components/QueryRoutePanel.tsx) | 按策略展示改写查询、HyDE 假设答案或子查询列表 |
 | 构建配置 | [/frontend/vite.config.ts](../frontend/vite.config.ts) | Vite + @vitejs/plugin-react |
 | API 客户端生成 | [/frontend/openapi-ts.config.ts](../frontend/openapi-ts.config.ts) | OpenAPI 输入与 `src/client/` 生成配置 |
 | 依赖锁定 | [/frontend/package-lock.json](../frontend/package-lock.json) | npm 锁文件，**必须提交**以保证可复现安装 |
