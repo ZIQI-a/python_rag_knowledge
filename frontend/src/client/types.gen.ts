@@ -58,6 +58,7 @@ export type CitationRead = {
      * Quote
      */
     quote: string;
+    retrieval_meta?: RetrievalMeta | null;
 };
 
 /**
@@ -363,6 +364,36 @@ export type QueryRouteRead = {
      * Multi Queries
      */
     multi_queries?: Array<string> | null;
+};
+
+/**
+ * RetrievalMeta
+ */
+export type RetrievalMeta = {
+    /**
+     * Sources
+     */
+    sources?: Array<string>;
+    /**
+     * Vector Rank
+     */
+    vector_rank?: number | null;
+    /**
+     * Vector Score
+     */
+    vector_score?: number | null;
+    /**
+     * Keyword Rank
+     */
+    keyword_rank?: number | null;
+    /**
+     * Keyword Score
+     */
+    keyword_score?: number | null;
+    /**
+     * Rrf Score
+     */
+    rrf_score?: number | null;
 };
 
 /**

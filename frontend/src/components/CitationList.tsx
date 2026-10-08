@@ -5,6 +5,18 @@ import {forwardRef, useImperativeHandle, useState} from "react";
 import {Link} from "react-router-dom";
 
 const {Paragraph} = Typography
+type SourceTagMeta = { color: string; label: string }
+
+// 将source函数映射成tag源信息, 前端展示用了什么搜索方式
+function formatSourceTag(sources?: string[]): SourceTagMeta | null {
+    if (!sources || sources.length === 0) return null
+    const hasVector = sources.includes('vector')
+    const hasKeyword = sources.includes('keyword')
+    if (hasVector && hasKeyword) return { color: 'purple', label: '混合' }
+    if (hasVector) return { color: 'blue', label: '向量' }
+    if (hasKeyword) return { color: 'orange', label: '关键词' }
+    return null
+}
 
 // 引用列表组件的操作句柄
 export interface CitationListHandle {
@@ -25,7 +37,7 @@ function panelKey(c: CitationRead): string {
 function anchorId(messageId: string, n: number): string {
     return `cite-${messageId}-${n}`
 }
-
+// 引用列表组件
 export const CitationList = forwardRef<CitationListHandle, CitationListProps>(
     function CitationList({ citations, messageId }, ref) {
         const [activeKey, setActiveKey] = useState<string[]>([]) // 受控active，保持已展开的项目不被点击
@@ -49,11 +61,18 @@ export const CitationList = forwardRef<CitationListHandle, CitationListProps>(
         )
 
         if (citations.length === 0) return null;
-        const items = citations.map((c) => ({
-            key: panelKey(c),
-            label: (
-                <span id={anchorId(messageId, c.ordinal)}>
+        const items = citations.map((c) => {
+            const sourceTag = formatSourceTag(c.retrieval_meta?.sources)
+            return {
+                key: panelKey(c),
+                label: (
+                    <span id={anchorId(messageId, c.ordinal)}>
                     <Tag color="blue" style={{ marginInlineEnd: 8 }}>{`[${c.ordinal}]`}</Tag>
+                    {sourceTag ? (
+                        <Tag color={sourceTag.color} style={{ marginInlineEnd: 8 }}>
+                            {sourceTag.label}
+                        </Tag>
+                    ) : null}
                     {c.document_id ? (
                         <Link to={`/documents/${c.document_id}`}>{c.document_name}</Link>
                     ) : (
@@ -63,16 +82,17 @@ export const CitationList = forwardRef<CitationListHandle, CitationListProps>(
                         <span style={{ marginInlineStart: 8, color: '#999' }}>第 {c.page_no} 页</span>
                     ) : null}
                 </span>
-            ),
-            children: (
-                <Paragraph
-                    style={{ whiteSpace: 'pre-wrap', marginBottom: 0, color: '#555' }}
-                    ellipsis={{ rows: 6, expandable: true, symbol: '展开'}}
-                >
-                    {c.quote}
-                </Paragraph>
-            )
-        }))
+                ),
+                children: (
+                    <Paragraph
+                        style={{ whiteSpace: 'pre-wrap', marginBottom: 0, color: '#555' }}
+                        ellipsis={{ rows: 6, expandable: true, symbol: '展开'}}
+                    >
+                        {c.quote}
+                    </Paragraph>
+                )
+            }
+        })
 
         return (
             <Collapse
