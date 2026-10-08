@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,6 +16,13 @@ class RetrievedChunk:
     page_no: int | None
     section_path: str | None # 文档章节路径
     score: float # 相似度分数
+    sources: tuple[str, ...] = field(default_factory=tuple)
+    vector_rank: int | None = None
+    vector_score: float | None = None # 原始向量相似度分数
+    keyword_rank: int | None = None
+    keyword_score: float | None = None
+    rrf_score: float | None = None
+
 
 """ Vector检索 """
 class VectorRetriever:
@@ -29,6 +36,8 @@ class VectorRetriever:
         rows = await self.chunk_repo.vector_search(embedding, top_k)
         return [
             RetrievedChunk(
+                # score 是混合检索后的分数越大越相似
+                # """ 共两种检索方式:1 向量路 2 关键词路 """
                 chunk_id=chunk.id,
                 document_id=chunk.document_id,
                 document_name=chunk.document.name,
@@ -36,6 +45,9 @@ class VectorRetriever:
                 page_no=chunk.page_no,
                 section_path=chunk.section_path,
                 score=1.0 - distance,
+                sources=("vector",),
+                vector_rank=rank,
+                vector_score=1.0 - distance
             )
-            for chunk, distance in rows
+            for rank, (chunk, distance) in enumerate(rows, start=1)
         ]
