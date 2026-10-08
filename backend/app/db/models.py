@@ -6,6 +6,7 @@ from uuid import UUID, uuid4
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     BigInteger,
+    Computed,
     DateTime,
     ForeignKey,
     Integer,
@@ -13,7 +14,7 @@ from sqlalchemy import (
     Text,
     func,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PGUUID
+from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR, UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.config import settings
@@ -91,6 +92,13 @@ class DocumentChunk(Base):
     chunk_hash: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     extra_metadata: Mapped[dict] = mapped_column(
         "metadata", JSONB, nullable=False, default=dict
+    )
+    # 全文检索索引列，根据Content自动维护，只读
+    content_tsv: Mapped[str] = mapped_column(
+        TSVECTOR,
+        #Computed(persisted=True) 会自动从 INSERT/UPDATE 中排除该列
+        Computed("to_tsvector('chinese_zh', content)", persisted=True),
+        nullable=False,
     )
 
     created_at: Mapped[datetime] = mapped_column(
@@ -179,5 +187,8 @@ class AnswerCitation(Base):
     document_name: Mapped[str] = mapped_column(String(512), nullable=False)
     page_no: Mapped[int | None] = mapped_column(Integer, nullable=True)
     quote: Mapped[str] = mapped_column(Text, nullable=False)
+    # 混合检索调试源数据 sources 源 / vector_rank向量排名 / keyword_rank关键词排名
+    # / *_score 向量或关键词的原始分数 / rrf_score 最终得分
+    retrieval_meta: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     message: Mapped[Message] = relationship(back_populates="citations")

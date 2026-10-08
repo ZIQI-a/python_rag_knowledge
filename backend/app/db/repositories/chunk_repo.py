@@ -106,5 +106,24 @@ class DocumentChunkRepository:
         rows = (await self.session.execute(stmt)).all()
         return [(chunk, float(dist)) for chunk, dist in rows]
 
+    # 基于关键词搜索(全文中文检索)
+    async def keyword_search(self, query: str, top_k: int) -> list[tuple[DocumentChunk, float]]:
+        # 使用Chinese_zh文本搜索配置
+        tsquery = func.plainto_tsquery("chinese_zh", query)
+        rank_expr = func.ts_rank(DocumentChunk.content_tsv, tsquery)
+        stmt = (
+            select(DocumentChunk, rank_expr.label("rank"))
+            .join(Document, Document.id == DocumentChunk.document_id)
+            .where(
+                # 必须是已就绪状态
+                Document.status == "ready",
+                DocumentChunk.content_tsv.op("@@")(tsquery),
+            )
+            .order_by(rank_expr.desc())
+            .limit(top_k)
+            .options(selectinload(DocumentChunk.document))
+        )
+        rows = (await self.session.execute(stmt)).all()
+        return [(chunk, float(rank)) for chunk, rank in rows]
 
 
