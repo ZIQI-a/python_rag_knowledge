@@ -45,6 +45,11 @@ class Settings(BaseSettings):
     query_route_enabled: bool = True
     # 多重查询策略生成的子查询数量
     multi_query_count: int = 3
+    # ===== 混合检索 ====
+    # 取20兼容召回率与RF融合开销
+    retrieval_recall_top_k: int = 20
+    # RRF平滑常数
+    rrf_k: int = 60
 
 
     @property

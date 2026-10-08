@@ -32,6 +32,15 @@ class ConversationRead(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+# 混合检索调试的元数据 - 用于前端展示
+class RetrievalMeta(BaseModel):
+    sources: list[str] = Field(default_factory=list)
+    vector_rank: int | None = None
+    vector_score: float | None = None
+    keyword_rank: int | None = None
+    keyword_score: float | None = None
+    rrf_score: float | None = None
+
 # 知识库引用的chunk快照
 class CitationRead(BaseModel):
     id: UUID
@@ -41,6 +50,7 @@ class CitationRead(BaseModel):
     document_name: str
     page_no: int | None = None
     quote: str
+    retrieval_meta: RetrievalMeta | None = None # 混合检索源数据
 
     @classmethod
     def from_orm(cls, citation) -> "CitationRead":
@@ -52,7 +62,17 @@ class CitationRead(BaseModel):
             document_name=citation.document_name,
             page_no=citation.page_no,
             quote=citation.quote,
+            retrieval_meta=parse_retrieval_meta(citation.retrieval_meta)
         )
+
+# 解析混合检索元数据, 由于这是添加的字段，历史消息没有RetrievalMeta,缺失返回空
+def parse_retrieval_meta(raw: dict | None) -> RetrievalMeta | None:
+    if not isinstance(raw, dict):
+        return None
+    try:
+        return RetrievalMeta.model_validate(raw)
+    except Exception:
+        return None
 
 # 消息体
 class MessageRead(BaseModel):

@@ -27,7 +27,8 @@ def _serialize_citation(chunk: RetrievedChunk, ordinal: int) -> dict:
         "page_no": chunk.page_no,
         "section_path": chunk.section_path,
         "score": round(chunk.score, 4),
-        "quote": chunk.content
+        "quote": chunk.content,
+        "retrieval_meta": _build_retrieval_meta(chunk)
     }
 
 # SSE\metadata共用的query router荷载格式
@@ -38,6 +39,20 @@ def _build_query_route_payload(state: RAGState) -> dict:
         "rewritten_query": state.get("rewritten_query"),
         "hyde_answer": state.get("hyde_answer"),
         "multi_queries": state.get("multi_queries"),
+    }
+
+# 混合检索调试元数据的展示
+def _build_retrieval_meta(chunk: RetrievedChunk) -> dict:
+    return {
+        "sources": list(chunk.sources),
+        "vector_rank": chunk.vector_rank,
+        "vector_score": round(chunk.vector_score, 4) if chunk.vector_score is not None else None,
+        "keyword_rank": chunk.keyword_rank,
+        "keyword_score": round(chunk.keyword_score, 4) if chunk.keyword_score is not None else None,
+        "rrf_score": (
+            # 保留6位本身很小，保留4位会丢精度
+            round(chunk.rrf_score, 6) if chunk.rrf_score is not None else None
+        ),
     }
 
 class ChatService:
@@ -98,7 +113,7 @@ class ChatService:
                 }
 
                 # 3 retrieve,搜索分析含距达判定，先把引用放在前端，让资料面板可见
-                state.update(await retrieve(state,session))
+                state.update(await retrieve(state))
 
                 citations_payload = [
                     _serialize_citation(c, ordinal=i)
@@ -180,7 +195,8 @@ class ChatService:
                     chunk_id=chunk.chunk_id,
                     document_name=chunk.document_name,
                     page_no=chunk.page_no,
-                    quote=chunk.content
+                    quote=chunk.content,
+                    retrieval_meta=_build_retrieval_meta(chunk)
                 )
                 for ordinal, chunk in enumerate(
                     state.get("retrieved_chunks", []), start=1
