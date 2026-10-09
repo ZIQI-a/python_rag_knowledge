@@ -9,6 +9,18 @@ from app.db.models import Message
 
 MessageRoleValue = Literal["user", "assistant", "system"]
 QueryRouteValue = Literal["original", "rewrite", "hyde", "multi_query"] # 定义4个路由策略
+AgentActionValue = Literal["initial", "proceed", "rewrite_query", "switch_route", "refuse"]
+
+""" Agent的RAG单轮决策和观察快照 """
+class AgentStep(BaseModel):
+    round: int
+    action: AgentActionValue
+    reason: str
+    route: QueryRouteValue
+    query: str
+    retrieved_count: int | None = None
+    top_score: float | None = None
+    sufficient: bool | None = None
 
 # Query查询优化的调试快照，仅assistant消息会带，前端用于渲染面板
 class QueryRouteRead(BaseModel):
@@ -82,6 +94,7 @@ class MessageRead(BaseModel):
     created_at: datetime
     citations: list[CitationRead] = Field(default_factory=list)
     query_route: QueryRouteRead | None = None
+    agent_steps: list[AgentStep] | None = None # Agent 2G决策
 
     @classmethod
     def from_orm(cls, message) -> "MessageRead":
@@ -96,8 +109,27 @@ class MessageRead(BaseModel):
             else [],
             query_route= _parse_query_route(message.extra_metadata)
             if is_assistant
-            else None
+            else None,
+            agent_steps=_parse_agent_steps(message.extra_metadata)
+            if is_assistant else None,
         )
+
+""" 从Message extra metadata解析Agent Steps缺失返回空 """
+def _parse_agent_steps(metadata: dict | None) -> list[AgentStep] | None:
+    if not metadata:
+        return None
+    raw = metadata.get("agent_steps")
+    if not isinstance(raw, list) or not raw:
+        return None
+    parsed: list[AgentStep] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            return None
+        try:
+            parsed.append(AgentStep.model_validate(item))
+        except Exception:
+            return None
+    return parsed
 
 # 从Meta metadata中提取query route字段
 def _parse_query_route(metadata: dict | None) -> QueryRouteRead | None:
