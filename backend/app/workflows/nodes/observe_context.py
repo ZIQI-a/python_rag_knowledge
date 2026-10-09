@@ -13,7 +13,7 @@ def _is_sufficient(chunks):
     return top.vector_score >= settings.retrieval_min_score
 
 
-async def observe_content(state: RAGState) -> RAGState:
+async def observe_context(state: RAGState) -> RAGState:
     chunks: list[RetrievedChunk] = state.get("retrieved_chunks", [])
     sufficient = _is_sufficient(chunks)
     top_score = (

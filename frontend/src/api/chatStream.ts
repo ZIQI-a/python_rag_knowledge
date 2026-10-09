@@ -1,6 +1,6 @@
 // SSE流式输出客户端
 
-import type {CitationRead, QueryRouteRead} from "@/client/types.gen";
+import type {AgentStep, CitationRead, QueryRouteRead} from "@/client/types.gen";
 import {fetchEventSource} from "@microsoft/fetch-event-source";
 
 export interface ChatStartEvent {
@@ -11,6 +11,11 @@ export interface ChatStartEvent {
 export interface ChatQueryRouteEvent {
     type: 'query_route'
     queryRoute: QueryRouteRead
+}
+// agent步骤事件接口
+export interface ChatAgentStepsEvent {
+    type: 'agent_steps'
+    steps: AgentStep[]
 }
 
 export interface ChatCitationsEvent {
@@ -42,6 +47,7 @@ export type ChatStreamEvent =
     | ChatEndEvent
     | ChatTokenEvent
     | ChatErrorEvent
+    | ChatAgentStepsEvent
 
 interface StreamChatParams {
     conversationId: string
@@ -82,6 +88,9 @@ export async function streamChat({
                         break
                     case 'query_route':
                         onEvent({ type: 'query_route', queryRoute: data as QueryRouteRead })
+                        break
+                    case 'agent_steps':
+                        onEvent({ type: 'agent_steps', steps: (data.steps ?? []) as AgentStep[] })
                         break
                     case 'citations':
                         onEvent({type: 'citations', citations: data.citations ?? []})
