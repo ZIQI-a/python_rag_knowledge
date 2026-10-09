@@ -1,4 +1,4 @@
-""" 路由查询策略优化后的统一返回结果 """
+""" 路由Query查询策略优化后的统一返回结果 """
 from dataclasses import dataclass
 import re
 from typing import get_args
@@ -58,10 +58,11 @@ class QueryRewriter:
         ]
         return [q for q in queries if q][:n]
 
-    """ 统一入口 """
-    async def optimize(self, question: str, multi_query_count: int) -> QueryRouteResult:
+    """ 已知目标Router时，按Router填写对应的返回参数(在Agent的RAG切换路由时调用直接指定Route) """
+    async def apply_route(
+            self, question: str, route: QueryRoute, multi_query_count: int
+    ) -> QueryRouteResult:
         try:
-            route = await self.decide_route(question)
             if route == "rewrite":
                 rewritten = await self.rewrite(question)
                 if not rewritten:
@@ -86,8 +87,19 @@ class QueryRewriter:
                 )
             return QueryRouteResult(route="original", query=question)
         except Exception as e:
+            logger.exception("apply route模型调用失败,降级 original: e=%r ,question=%r", e, question)
+            return QueryRouteResult(route="original", query=question)
+
+
+
+    """ 统一入口 """
+    async def optimize(self, question: str, multi_query_count: int) -> QueryRouteResult:
+        try:
+            route = await self.decide_route(question)
+        except Exception as e:
             logger.exception("query optimize模型调用失败,降级 original: e=%r ,question=%r",e, question)
             return QueryRouteResult(route="original", query=question)
+        return await self.apply_route(question, route, multi_query_count)
 
 _rewriter: QueryRewriter | None = None
 
