@@ -11,7 +11,8 @@ from app.db.repositories.citation_repo import AnswerCitationRepository
 from app.db.session import AsyncSessionLocal
 from app.retrieval.vector_retriever import RetrievedChunk
 from app.db.repositories.conversation_repo import ConversationRepository
-from app.workflows.nodes import load_context, normalize_query, retrieve, stream_generate, route_query
+from app.workflows.graph import get_rag_graph
+from app.workflows.nodes import load_context, stream_generate
 from app.workflows.rag_state import RAGState
 
 # 导入日志模块
@@ -55,6 +56,10 @@ def _build_retrieval_meta(chunk: RetrievedChunk) -> dict:
         ),
     }
 
+""" SSE和Meta共用的核载形式 """
+def _serialize_agent_steps(state: RAGState) -> list[dict]:
+    return [dict(step) for step in state.get("agent_steps", [])]
+
 class ChatService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
@@ -96,10 +101,12 @@ class ChatService:
 
                 # 1 加载上下文（仅历史消息), 加载路由
                 state.update(await load_context(state, session))
-                state.update(await normalize_query(state))
-                state.update(await route_query(state))
 
-                # 2 用户的消息写入数据库
+
+                # 2 跑RAG子图
+                final_state = await get_rag_graph().ainvoke(state)
+                state.update(final_state)
+                # 3 用户的消息写入数据库
                 await self._persist_user_message(state, session)
 
                 yield {
@@ -111,13 +118,20 @@ class ChatService:
                     "event": "query_route",
                     "data": _build_query_route_payload(state)
                 }
+                # Agent step事件
+                yield {
+                    "event": "agent_steps",
+                    "data": {"steps": _serialize_agent_steps(state)}
+                }
 
                 # 3 retrieve,搜索分析含距达判定，先把引用放在前端，让资料面板可见
-                state.update(await retrieve(state))
-
                 citations_payload = [
-                    _serialize_citation(c, ordinal=i)
-                    for i, c in enumerate(state.get("retrieved_chunks", []), start=1)
+                    []
+                    if state.get("refused")
+                    else [
+                        _serialize_citation(c, ordinal=i)
+                        for i, c in enumerate(state.get("retrieved_chunks", []), start=1)
+                    ]
                 ]
                 yield {
                     "event": "citations",
@@ -181,7 +195,8 @@ class ChatService:
             # 把query流结果持久化到meta data字段，即使刷新时前端还能继续展示
             extra_metadata={
                 "refused": bool(state.get("refused")),
-                "query_route": _build_query_route_payload(state)
+                "query_route": _build_query_route_payload(state),
+                "agent_steps": _serialize_agent_steps(state)
             }
         )
         await conv_repo.add_message([assistant_msg])
