@@ -25,6 +25,11 @@ class RAGState(TypedDict, total=False):
 
     retrieved_chunks: list[RetrievedChunk]
     refused: bool # 是否触发拒答，True跳过generate
+    # Agentic RAG循环
+    agent_steps: list[str]
+    retrieval_round: int
+    # 判断本轮候选是否足够，为True走向end
+    context_sufficient: bool
     # generate
     answer: str
 
