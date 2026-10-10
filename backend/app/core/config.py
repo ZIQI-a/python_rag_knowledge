@@ -40,22 +40,36 @@ class Settings(BaseSettings):
     retrieval_min_score: float = 0.6 # 最小分数
     chat_history_window: int = 5 # 多轮窗口
 
-    # Query查询优化
+    """# Query查询优化"""
     # 是否开启Query查询，默认开启，关闭后只会使用original进行检索
     query_route_enabled: bool = True
     # 多重查询策略生成的子查询数量
     multi_query_count: int = 3
-    # ===== 混合检索 ====
+    """# ===== 混合检索 ===="""
     # 取20兼容召回率与RF融合开销
     retrieval_recall_top_k: int = 20
     # RRF平滑常数
     rrf_k: int = 60
-    # ===== Agentic RAG =====
+    """# ===== Agentic RAG ====="""
     # 关掉后图退化为单轮检索，作为单轮 vs agent 循环的对比开关
     agent_loop_enabled: bool = True
     # 最大检索轮次（含首轮）。LLM 决策最多触发 max_rounds-1 次再检索，避免循环调用
     agent_max_rounds: int = 3
+    """# ==== 第八章Rerank重排 ===="""
+    rerank_enabled: bool = True # 是否开启精排
+    # 重排模型不兼容OpenAPI，在这重写
+    rerank_base_url: str = ''
+    rerank_model: str = ''
+    rerank_api_key: str = ai_api_key
+    rerank_min_score: float = 0.3 # Rerank Top一相关阈值小于则触发拒答
+    rerank_timeout: float = 0.8 # 超时
 
+    """ AI输出答案二次校验 """
+    verify_answer_enabled: bool = True
+
+    @property
+    def effective_rerank_api_key(self) -> str:
+        return self.rerank_api_key or self.ai_api_key
 
     @property
     def cos_configured(self) -> bool:

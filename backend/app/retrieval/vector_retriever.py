@@ -22,7 +22,7 @@ class RetrievedChunk:
     keyword_rank: int | None = None
     keyword_score: float | None = None
     rrf_score: float | None = None
-
+    rerank_score: float | None = None # 重新排序分数, 0-1
 
 """ Vector检索 """
 class VectorRetriever:
