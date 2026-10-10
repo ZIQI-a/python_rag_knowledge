@@ -1,7 +1,14 @@
 // 对话页面
 
 import {Input, Typography, Alert, Avatar, Button, Empty, Space, Spin, message as antdMessage} from "antd";
-import {type CitationRead, createConversation, getConversation, type MessageRead, type QueryRouteRead} from "@/client";
+import {
+    type AgentStep,
+    type CitationRead,
+    createConversation,
+    getConversation,
+    type MessageRead,
+    type QueryRouteRead
+} from "@/client";
 import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
 import React, {useEffect, useMemo, useRef, useState} from "react";
 import type {ChatStreamEvent} from "@/api/chatStream.ts";
@@ -13,6 +20,7 @@ import {CitationList, type CitationListHandle} from "@/components/CitationList.t
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {QueryRoutePanel} from "@/components/QueryRoutePanel.tsx";
+import {AgentStepsPanel} from "@/components/AgentStepsPanel.tsx";
 
 const {Title, Paragraph, Text} = Typography
 const {TextArea} = Input
@@ -27,7 +35,8 @@ interface UiMessage {
     role: 'user' | 'assistant'
     content: string
     citations: CitationRead[]
-    queryRoute: QueryRouteRead | null // Query路由策略
+    queryRoute?: QueryRouteRead | null // Query路由策略
+    agentSteps?: AgentStep[] | null
     status?: AssistantStatus
     error?: string | null
 }
@@ -39,6 +48,7 @@ function fromServerMessage(m: MessageRead): UiMessage {
         role: m.role === 'user' ? 'user' : 'assistant',
         content: m.content,
         queryRoute: m.query_route ?? null,
+        agentSteps: m.agent_steps ?? null,
         citations: m.citations ?? [],
         status: 'done',
     }
@@ -177,6 +187,9 @@ export function ChatPage() {
                             break
                         case 'query_route':
                             updateAssistant((prev) => ({ ...prev, queryRoute: event.queryRoute }))
+                            break
+                        case 'agent_steps':
+                            updateAssistant((prev) => ({ ...prev, agentSteps: event.steps }))
                             break
                         case 'citations':
                             updateAssistant((prev) => ({ ...prev, citations: event.citations}))
@@ -374,6 +387,9 @@ function MessageBubble({message}: MessageBubbleProps) {
                 ) : null}
                 {!isUser && message.queryRoute ? (
                     <QueryRoutePanel queryRoute={message.queryRoute} />
+                ) : null}
+                {!isUser && message.agentSteps && message.agentSteps.length > 0 ? (
+                    <AgentStepsPanel steps={message.agentSteps} />
                 ) : null}
                 {!isUser && message.citations.length > 0 ? (
                     <CitationList ref={citationRef} citations={message.citations} messageId={message.id} />
