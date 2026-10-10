@@ -10,7 +10,7 @@ async def route_query(state: RAGState) -> RAGState:
     if not settings.query_route_enabled:
         return {"route": "original"}
     result = await get_query_rewriter().optimize(
-        question=state["question"],
+        question=state["query"],
         multi_query_count=settings.multi_query_count
     )
 

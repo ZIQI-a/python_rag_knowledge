@@ -4,9 +4,10 @@ import re
 from typing import get_args
 
 from app.core.logging import get_logger
+from app.db.models import Message, MessageRole
 from app.llm.models import get_chat_model
 from app.llm.prompts import build_route_messages, build_rewrite_messages, build_hyde_messages, \
-    build_multi_query_messages
+    build_multi_query_messages, build_contextualize_messages
 from app.workflows.rag_state import QueryRoute
 
 logger = get_logger(__name__)
@@ -21,6 +22,7 @@ class QueryRouteResult:
     rewritten_query: str | None = None
     hyde_answer: str | None = None
     multi_queries: list[str] | None = None
+
 
 class QueryRewriter:
 
@@ -90,6 +92,23 @@ class QueryRewriter:
             logger.exception("apply route模型调用失败,降级 original: e=%r ,question=%r", e, question)
             return QueryRouteResult(route="original", query=question)
 
+    """ 基于多轮会话历史，将当前会话和问题改写为完整独立句 """
+    async def contextualize(self, question: str, history: list[Message]) -> str:
+
+        history_text = _format_history_text(history) # 列表转为字符串
+        if not history_text:
+            return question
+        try:
+            messages = build_contextualize_messages(question=question, histor=history_text)
+            response = await get_chat_model().ainvoke(messages)
+            rewritten = _extract_text(response.content).strip()
+            return rewritten or question
+        except Exception:
+            logger.exception(
+                "上下文会话调用失败，只发送当前问题: question=%r", question
+            )
+            return question
+
 
 
     """ 统一入口 """
@@ -120,3 +139,19 @@ def _extract_text(content: str | list[str | dict]) -> str:
         for part in content
         if isinstance(part, (str, dict))
     )
+
+_ROLE_LABEL: dict[MessageRole, str] = {
+    MessageRole.USER: "用户",
+    MessageRole.ASSISTANT: "AI",
+    MessageRole.SYSTEM: "系统"
+}
+
+# 将历史消息列表转为字符串,给AI方便查看
+def _format_history_text(history):
+    lines: list[str] = []
+    for msg in history:
+        role_label = _ROLE_LABEL.get(msg.role)
+        if not role_label or not msg.content.strip():
+            continue
+        lines.append(f"{role_label}: {msg.content.strip()}")
+    return "\n".join(lines)

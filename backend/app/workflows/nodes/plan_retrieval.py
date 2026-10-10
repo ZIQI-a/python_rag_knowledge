@@ -24,7 +24,7 @@ async def plan_retrieval(state: RAGState) -> RAGState:
 
     # 后续由大模型Planner决定如何重试
     decision = await get_agent_planner().plan(
-        question=state["question"],
+        question=state["query"],
         current_route=current_route,
         current_query=current_query,
         previous_steps=steps,
@@ -47,7 +47,7 @@ async def plan_retrieval(state: RAGState) -> RAGState:
     elif decision.action == "switch_route" and decision.new_route:
         rewriter = get_query_rewriter()
         result = await rewriter.apply_route(
-            question=state["question"],
+            question=state["query"],
             route=decision.new_route,
             multi_query_count=settings.multi_query_count
         )

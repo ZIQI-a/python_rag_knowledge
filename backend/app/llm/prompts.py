@@ -1,8 +1,8 @@
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-from app.retrieval.vector_retriever import RetrievedChunk
 from app.db.models import Message, MessageRole
+from app.retrieval.vector_retriever import RetrievedChunk
 
 _SYSTEM_PROMPT = """你是知识库助手，必须严格遵守以下规则：
 
@@ -35,13 +35,15 @@ _SYSTEM_PROMPT = """你是知识库助手，必须严格遵守以下规则：
 # RAG 回答模板
 RAG_ANSWER_PROMPT = ChatPromptTemplate.from_messages(
     [
-        ("system", _SYSTEM_PROMPT), # 系统提示词，定义规则
-        MessagesPlaceholder("chat_history", optional=True), # 插入历史信息，即使没有历史也可以正常对话
-        ("human", "{question}"), # 当前问题 user | human
+        ("system", _SYSTEM_PROMPT),  # 系统提示词，定义规则
+        MessagesPlaceholder("chat_history", optional=True),  # 插入历史信息，即使没有历史也可以正常对话
+        ("human", "{question}"),  # 当前问题 user | human
     ]
 )
 
 """ 将检索结果拼成给大模型的{参考资料} """
+
+
 def format_context(chunks: list[RetrievedChunk]) -> str:
     if not chunks:
         return "(无)"
@@ -55,7 +57,10 @@ def format_context(chunks: list[RetrievedChunk]) -> str:
         parts.append(f"「片段：{index}」({meta}) \n{chunk.content}")
     return "\n\n---\n\n".join(parts)
 
+
 """ 数据库的Message对象转换成Langchain BaseMessage放进prompt """
+
+
 def history_to_messages(history: list[Message]) -> list[BaseMessage]:
     messages: list[BaseMessage] = []
     for msg in history:
@@ -67,7 +72,10 @@ def history_to_messages(history: list[Message]) -> list[BaseMessage]:
             messages.append(SystemMessage(content=msg.content))
     return messages
 
+
 """ 最终拼接大模型的Message列表 """
+
+
 def build_answer_messages(
         question: str,
         chunks: list[RetrievedChunk],
@@ -81,6 +89,7 @@ def build_answer_messages(
         }
     )
     return list(prompt_value.to_messages())
+
 
 REFUSAL_ANSWER = "抱歉，知识库中没有找到相关信息。"
 
@@ -101,9 +110,11 @@ QUERY_ROUTE_PROMPT = ChatPromptTemplate.from_messages(
     [("system", _ROUTE_SYSTEM), ("human", _ROUTE_HUMAN)]
 )
 
+
 # 封装
 def build_route_messages(question: str) -> list[BaseMessage]:
-        return list(QUERY_ROUTE_PROMPT.invoke({"question": question}).to_messages())
+    return list(QUERY_ROUTE_PROMPT.invoke({"question": question}).to_messages())
+
 
 # 问题重写策略提示词
 _REWRITE_SYSTEM = """你是一个查询改写助手。把用户问题改写成一个**独立完整**的检索查询：
@@ -117,8 +128,10 @@ QUERY_REWRITE_PROMPT = ChatPromptTemplate.from_messages(
     [("system", _REWRITE_SYSTEM), ("human", "{question}")]
 )
 
+
 def build_rewrite_messages(question: str) -> list[BaseMessage]:
     return list(QUERY_REWRITE_PROMPT.invoke({"question": question}).to_messages())
+
 
 # 假设答案策略提示词
 _HYDE_SYSTEM = """你是一个 HyDE（Hypothetical Document Embeddings）助手。请基于一般领域常识，
@@ -135,8 +148,10 @@ HYDE_PROMPT = ChatPromptTemplate.from_messages(
     [("system", _HYDE_SYSTEM), ("human", "{question}")]
 )
 
+
 def build_hyde_messages(question: str) -> list[BaseMessage]:
     return list(HYDE_PROMPT.invoke({"question": question}).to_messages())
+
 
 # 查询扩展助手
 
@@ -153,8 +168,10 @@ MULTI_QUERY_PROMPT = ChatPromptTemplate.from_messages(
     [("system", _MULTI_QUERY_SYSTEM), ("human", "{question}")]
 )
 
+
 def build_multi_query_messages(question: str, n: int) -> list[BaseMessage]:
     return list(MULTI_QUERY_PROMPT.invoke({"question": question, "n": n}).to_messages())
+
 
 # ============================================================================
 # 第 7 章：Agentic RAG 决策器 prompt
@@ -189,6 +206,35 @@ _AGENT_PLAN_HUMAN = """用户原始问题：{question}
 AGENT_PLAN_PROMPT = ChatPromptTemplate.from_messages(
     [("system", _AGENT_PLAN_SYSTEM), ("human", _AGENT_PLAN_HUMAN)]
 )
+
+# ============================================================================
+# 第 8 章：多轮上下文对话和答案校验prompt
+# ============================================================================
+_CONTEXTUALIZE_SYSTEM = """你是一个多轮对话查询改写助手。请基于对话历史把用户当前问题改写成
+**独立完整、可单独检索**的问句：
+
+- 消解指代："它"、"这个"、"上面提到的..."、"刚才那个..."等
+- 补全省略：用户在追问场景里经常省略主语或宾语，需要从历史里把缺失成分补全
+- 不要回答问题，不要扩展含义，不要改变用户的真实意图
+- 不要加任何引号、编号、解释，只输出单行改写后的问句
+- 如果当前问题已经独立完整，直接原样输出
+
+【对话历史】
+{history}"""
+
+_CONTEXTUALIZE_HUMAN = "{question}"
+CONTEXTUALIZE_PROMPT = ChatPromptTemplate.from_messages(
+    [("system", _CONTEXTUALIZE_SYSTEM), ("human", _CONTEXTUALIZE_HUMAN)]
+)
+
+
+def build_contextualize_messages(question: str, history: str) -> list[BaseMessage]:
+    return list(
+        CONTEXTUALIZE_PROMPT.invoke(
+            {"question": question, "history": history}
+        ).to_messages()
+    )
+
 
 def build_agent_plan_messages(
         question: str,
