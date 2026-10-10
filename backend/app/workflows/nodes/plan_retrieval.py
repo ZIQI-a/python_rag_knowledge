@@ -1,7 +1,6 @@
 """ 检索流程，策划节点 """
 from app.core.config import settings
 from app.llm.agent_planner import get_agent_planner
-from app.llm.prompts import REFUSAL_ANSWER
 from app.llm.query_rewriter import get_query_rewriter
 from app.workflows.rag_state import RAGState, QueryRoute
 
@@ -70,10 +69,7 @@ async def plan_retrieval(state: RAGState) -> RAGState:
         }
     )
     update["agent_steps"] = steps
-    # 如果是refuse直接终止，使用默认答案兜底
-    if decision.action == "refuse":
-        update["refused"] = True
-        update["answer"] = REFUSAL_ANSWER
+    # 走到巨大路由时，直接把节点塞给Refuse节点，统一显示文案
     return update
 
 
