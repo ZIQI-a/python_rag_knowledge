@@ -207,6 +207,24 @@ AGENT_PLAN_PROMPT = ChatPromptTemplate.from_messages(
     [("system", _AGENT_PLAN_SYSTEM), ("human", _AGENT_PLAN_HUMAN)]
 )
 
+def build_agent_plan_messages(
+        question: str,
+        current_query: str,
+        current_route: str,
+        history: str,
+) -> list[BaseMessage]:
+    return list(
+        AGENT_PLAN_PROMPT.invoke(
+            {
+                "question": question,
+                "current_query": current_query,
+                "current_route": current_route,
+                "history": history,
+            }
+        ).to_messages()
+    )
+
+
 # ============================================================================
 # 第 8 章：多轮上下文对话和答案校验prompt
 # ============================================================================
@@ -235,20 +253,47 @@ def build_contextualize_messages(question: str, history: str) -> list[BaseMessag
         ).to_messages()
     )
 
+# ============================================================================
+# 第 8 章：8.3.7答案校验器
+# ============================================================================
+_VERIFY_ANSWER_SYSTEM = """你是一个 RAG 答案可信度校验员。请判断回答是否**完全被给定的参考片段支撑**：
 
-def build_agent_plan_messages(
-        question: str,
-        current_query: str,
-        current_route: str,
-        history: str,
+判定标准：
+- 答案中每个关键事实结论（数字、名称、规则、时间、条款）都必须能在某个片段原文中**直接找到**
+- 礼貌话、转折词、复述问题的句子不算关键结论，可忽略
+- 答案标了 [N] 引用编号的，要重点核对：N 号片段是否真的支撑这条结论
+- 出现"未在知识库中找到"等明确拒答文案时直接判 verified=true（拒答本身就是被允许的输出）
+
+判定结果：
+- verified=true：所有关键结论都被支撑
+- verified=false：存在编造、引用张冠李戴、或片段里完全没提到的事实
+
+输出**单行 JSON**，键固定为 verified / reason，reason 用一句话说清楚理由（中文）。
+示例：{{"verified": false, "reason": "答案提到差旅住宿 800 元，片段中只提到 600 元"}}"""
+
+_VERIFY_ANSWER_HUMAN = """【用户问题】
+{question}
+
+【参考片段】
+{chunks_text}
+
+【模型回答】
+{answer}
+
+请输出校验结果 JSON。"""
+
+VERIFY_ANSWER_PROMPT = ChatPromptTemplate.from_messages(
+    [("system", _VERIFY_ANSWER_SYSTEM), ("human", _VERIFY_ANSWER_HUMAN)]
+)
+def build_verify_answer_messages(
+        question: str, answer: str, chunks_text: str
 ) -> list[BaseMessage]:
     return list(
-        AGENT_PLAN_PROMPT.invoke(
+        VERIFY_ANSWER_PROMPT.invoke(
             {
                 "question": question,
-                "current_query": current_query,
-                "current_route": current_route,
-                "history": history,
+                "answer": answer,
+                "chunks_text": chunks_text,
             }
         ).to_messages()
     )
