@@ -3,7 +3,7 @@ from langgraph.graph import StateGraph
 
 from app.core.config import settings
 from app.core.logging import get_logger
-from app.workflows.nodes import normalize_query, route_query, plan_retrieval, retrieve, observe_context
+from app.workflows.nodes import normalize_query, route_query, plan_retrieval, retrieve, observe_context, judge_context, refuse, rerank
 from app.workflows.rag_state import RAGState
 
 logger = get_logger(__name__)
@@ -20,14 +20,19 @@ def _after_plan(state: RAGState) -> str:
 def _after_observe(state: RAGState) -> str:
     # 关闭Agent Loop结束
     if not settings.agent_loop_enabled:
-        return "end"
+        return "rerank"
     # 本轮信息已足够，结束
     if state.get("context_sufficient"):
-        return "end"
+        return "rerank"
     # 达到上限结束
     if state.get("retrieval_round", 0) >= settings.agent_max_rounds:
-        return "end"
+        return "rerank"
     return "plan"
+
+def _after_judge(state: RAGState) -> str:
+    if state.get("context_is_enough"):
+        return "end"
+    return "refuse"
 
 def _build_graph():
     builder = StateGraph(RAGState)
@@ -37,6 +42,9 @@ def _build_graph():
     builder.add_node("plan_retrieval", plan_retrieval)
     builder.add_node("retrieve", retrieve)
     builder.add_node("observe_context", observe_context)
+    builder.add_node("rerank", rerank)
+    builder.add_node("judge_context", judge_context)
+    builder.add_node("refuse", refuse)
     # 添加边连接起来
     builder.add_edge(START, "normalize_query")
     builder.add_edge("normalize_query", "route_query")
@@ -48,8 +56,13 @@ def _build_graph():
     builder.add_conditional_edges(
         "observe_context",
         _after_observe,
-        {"plan": "plan_retrieval", "end": END},
+        {"plan": "plan_retrieval", "rerank": rerank},
     )
+    builder.add_edge("rerank", "judge_context")
+    builder.add_conditional_edges(
+        "judge_context", _after_judge, {"end": END, "refuse": "refuse"}
+    )
+    builder.add_edge("refuse", END)
 
     return builder.compile()
 

@@ -30,6 +30,8 @@ class RAGState(TypedDict, total=False):
     retrieval_round: int
     # 判断本轮候选是否足够，为True走向end
     context_sufficient: bool
+    # Rerank基于Top一分数的拒答;False走向拒绝节点True走向End
+    context_is_enough: bool
     # generate
     answer: str
 
