@@ -4,19 +4,23 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.logging import get_logger
+from app.core.config import settings
 from app.core.exceptions import NotFoundError
+from app.core.logging import get_logger
 from app.db.models import Conversation, Message, AnswerCitation
 from app.db.repositories.citation_repo import AnswerCitationRepository
-from app.db.session import AsyncSessionLocal
-from app.retrieval.vector_retriever import RetrievedChunk
 from app.db.repositories.conversation_repo import ConversationRepository
+from app.db.session import AsyncSessionLocal
+from app.llm.answer_verifier import VerifyResult, get_answer_verifier
+from app.llm.prompts import REFUSAL_ANSWER
+from app.retrieval.vector_retriever import RetrievedChunk
 from app.workflows.graph import get_rag_graph
 from app.workflows.nodes import load_context, stream_generate
 from app.workflows.rag_state import RAGState
 
 # 导入日志模块
 logger = get_logger(__name__)
+
 
 # 将检索结果序列化成JSON
 def _serialize_citation(chunk: RetrievedChunk, ordinal: int) -> dict:
@@ -32,6 +36,7 @@ def _serialize_citation(chunk: RetrievedChunk, ordinal: int) -> dict:
         "retrieval_meta": _build_retrieval_meta(chunk)
     }
 
+
 # SSE\metadata共用的query router荷载格式
 def _build_query_route_payload(state: RAGState) -> dict:
     return {
@@ -41,6 +46,7 @@ def _build_query_route_payload(state: RAGState) -> dict:
         "hyde_answer": state.get("hyde_answer"),
         "multi_queries": state.get("multi_queries"),
     }
+
 
 # 混合检索调试元数据的展示
 def _build_retrieval_meta(chunk: RetrievedChunk) -> dict:
@@ -54,11 +60,32 @@ def _build_retrieval_meta(chunk: RetrievedChunk) -> dict:
             # 保留6位本身很小，保留4位会丢精度
             round(chunk.rrf_score, 6) if chunk.rrf_score is not None else None
         ),
+        "rerank_score": (
+            round(chunk.rerank_score, 4) if chunk.rerank_score is not None else None
+        )
     }
 
+
+# 答案输出后，认证校验的核载构造; SSE/metadata共用核载
+def _build_verify_payload(
+        result: VerifyResult, *, replacement_answer: str | None
+) -> dict:
+    payload: dict = {
+        "verified": result.verified,
+        "reason": result.reason or None
+    }
+    # replacement_answer仅在非认证时携带，替换展示答案
+    if not result.verified and replacement_answer is not None:
+        payload["replacement_answer"] = replacement_answer
+    return payload
+
+
 """ SSE和Meta共用的核载形式 """
+
+
 def _serialize_agent_steps(state: RAGState) -> list[dict]:
     return [dict(step) for step in state.get("agent_steps", [])]
+
 
 class ChatService:
     def __init__(self, session: AsyncSession) -> None:
@@ -88,8 +115,19 @@ class ChatService:
         return conversation, messages
 
     """ 流式输出回答，主要方案 """
+
     async def stream_answer(self,
                             conversation_id: UUID, question: str) -> AsyncIterator[dict]:
+        """逐事件 yield SSE 载荷。
+
+        事件协议（与前端约定）：
+            message_start → query_route → agent_steps → citations → token...
+            → [verify_result] → message_end
+        - 拒答路径不发 verify_result（拒答本身已经是终态）
+        - verify_result.verified=False 时携带 replacement_answer，前端按它整段
+          替换流式出来的答案，与 PRD"校验失败 → 拒答替换"对齐
+        任何阶段出错则改 yield error 并提前结束。
+        """
         await self.get_conversation(conversation_id)
 
         async with AsyncSessionLocal() as session:
@@ -101,7 +139,6 @@ class ChatService:
 
                 # 1 加载上下文（仅历史消息), 加载路由
                 state.update(await load_context(state, session))
-
 
                 # 2 跑RAG子图
                 final_state = await get_rag_graph().ainvoke(state)
@@ -124,7 +161,7 @@ class ChatService:
                     "data": {"steps": _serialize_agent_steps(state)}
                 }
 
-                # 3 retrieve,搜索分析含距达判定，先把引用放在前端，让资料面板可见
+                # 4 retrieve,搜索分析含距达判定，先把引用放在前端，让资料面板可见
                 citations_payload = [
                     []
                     if state.get("refused")
@@ -138,7 +175,8 @@ class ChatService:
                     "data": {"citations": citations_payload},
                 }
 
-                # 4 生成，如果拒绝则输出拒绝文案
+                # 5 生成，如果拒绝则输出拒绝文案
+                verify_result: VerifyResult | None = None
                 if state.get("refused"):
                     yield {
                         "event": "token",
@@ -150,8 +188,29 @@ class ChatService:
                         answer_parts.append(delta)
                         yield {"event": "token", "data": {"delta": delta}}
                     state["answer"] = "".join(answer_parts)
-                # 5 AI消息+引用写入数据库
-                await self._persist_assistant_message(state, session)
+
+                    # 6 最终答案llm校验(认证仅在不拒答情况下执行，因为拒答情况下已经有现成的拒答文案)
+                    if settings.verify_answer_enabled:
+                        verify_result = await get_answer_verifier().verify(
+                            question=state["query"],
+                            answer=state["answer"],
+                            chunks=list(state.get("retrieved_chunks", []))
+                        )
+                        replacement = (
+                            REFUSAL_ANSWER if not verify_result.verified else None
+                        )
+                        if not verify_result.verified:
+                            state["answer"] = REFUSAL_ANSWER
+                            state["refused"] = True
+                        yield {
+                            "event": "verify_result",
+                            "data": _build_verify_payload(
+                                verify_result, replacement_answer=replacement
+                            ),
+                        }
+
+                # 6 AI消息+引用写入数据库
+                await self._persist_assistant_message(state, session, verify_result=verify_result)
                 yield {
                     "event": "message_end",
                     "data": {
@@ -171,6 +230,7 @@ class ChatService:
                 }
 
     """ 写入用户消息(流式开始前 """
+
     async def _persist_user_message(
             self, state: RAGState, session: AsyncSession
     ) -> None:
@@ -183,21 +243,28 @@ class ChatService:
         state["user_message_id"] = user_msg.id
 
     """ 写入AI消息(流式结束后 """
+
     async def _persist_assistant_message(
-            self, state: RAGState, session: AsyncSession
+            self, state: RAGState, session: AsyncSession, *, verify_result: VerifyResult | None
     ) -> None:
         conv_repo = ConversationRepository(session)
         citation_repo = AnswerCitationRepository(session)
+
+        extra_metadata = {
+            "refused": bool(state.get("refused")),
+            "query_route": _build_query_route_payload(state),
+            "agent_steps": _serialize_agent_steps(state)
+        }
+        if verify_result is not None:
+            extra_metadata["verify_result"] = _build_verify_payload(
+                verify_result, replacement_answer=None
+            )
 
         assistant_msg = ConversationRepository.make_assistant_message(
             state["conversation_id"],
             content=state["answer"],
             # 把query流结果持久化到meta data字段，即使刷新时前端还能继续展示
-            extra_metadata={
-                "refused": bool(state.get("refused")),
-                "query_route": _build_query_route_payload(state),
-                "agent_steps": _serialize_agent_steps(state)
-            }
+            extra_metadata=extra_metadata
         )
         await conv_repo.add_message([assistant_msg])
 
