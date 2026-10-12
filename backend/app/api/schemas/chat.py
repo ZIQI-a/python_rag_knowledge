@@ -5,7 +5,6 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, ConfigDict
 
-from app.db.models import Message
 
 MessageRoleValue = Literal["user", "assistant", "system"]
 QueryRouteValue = Literal["original", "rewrite", "hyde", "multi_query"] # 定义4个路由策略
@@ -30,6 +29,35 @@ class QueryRouteRead(BaseModel):
     hyde_answer: str | None = None
     multi_queries: list[str] | None = None
 
+# 对话详情
+class ConversationDetail(BaseModel):
+    conversation: ConversationRead
+    messages: list[MessageRead]
+
+# 知识库问答请求体
+class ChatRequest(BaseModel):
+    question: str = Field(min_length=1, max_length=2000)
+
+""" 会话展示， 列表 """
+# 会话列表元素侧栏渲染
+class ConversationListItem(BaseModel):
+    id: UUID
+    title: str
+    updated_at: datetime
+    message_count: int
+
+# 会话列表分页响应
+class ConversationPage(BaseModel):
+    items: list[ConversationListItem]
+    total: int
+    page: int
+    page_size: int
+
+# 读取验证结果
+class VerifyResultRead(BaseModel):
+    verified: bool
+    reason: str | None = None
+
 
 # 创建对话请求体
 class ConversationCreate(BaseModel):
@@ -52,6 +80,7 @@ class RetrievalMeta(BaseModel):
     keyword_rank: int | None = None
     keyword_score: float | None = None
     rrf_score: float | None = None
+    rerank_score: float | None = None
 
 # 知识库引用的chunk快照
 class CitationRead(BaseModel):
@@ -95,6 +124,7 @@ class MessageRead(BaseModel):
     citations: list[CitationRead] = Field(default_factory=list)
     query_route: QueryRouteRead | None = None
     agent_steps: list[AgentStep] | None = None # Agent 2G决策
+    verify_result: VerifyResultRead | None = None
 
     @classmethod
     def from_orm(cls, message) -> "MessageRead":
@@ -111,6 +141,8 @@ class MessageRead(BaseModel):
             if is_assistant
             else None,
             agent_steps=_parse_agent_steps(message.extra_metadata)
+            if is_assistant else None,
+            verify_result=_parse_verify_result(message.extra_metadata)
             if is_assistant else None,
         )
 
@@ -142,12 +174,15 @@ def _parse_query_route(metadata: dict | None) -> QueryRouteRead | None:
         return QueryRouteRead.model_validate(raw)
     except Exception:
         return None
+# 解析大模型校验结果
+def _parse_verify_result(metadata: dict | None) -> VerifyResultRead | None:
+    if not metadata:
+        return None
+    raw = metadata.get("verify_result")
+    if not isinstance(raw, dict):
+        return None
+    try:
+        return VerifyResultRead.model_validate(raw)
+    except Exception:
+        return None
 
-# 对话详情
-class ConversationDetail(BaseModel):
-    conversation: ConversationRead
-    messages: list[MessageRead]
-
-# 知识库问答请求体
-class ChatRequest(BaseModel):
-    question: str = Field(min_length=1, max_length=2000)

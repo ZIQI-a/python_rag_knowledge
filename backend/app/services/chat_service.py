@@ -114,6 +114,21 @@ class ChatService:
         messages = await repo.list_message(conversation_id)
         return conversation, messages
 
+    # 展示会话列表
+    async def list_conversation(
+            self, page: int, page_size: int
+    ) -> tuple[list[tuple[Conversation, int]], int]:
+        repo  = ConversationRepository(self.session)
+        return await repo.list_page(page=page, page_size=page_size)
+
+    # 删除会话
+    async def delete_conversation(self, conversation_id: UUID) -> None:
+        repo = ConversationRepository(self.session)
+        deleted = await repo.delete(conversation_id)
+        if not deleted:
+            raise NotFoundError("会话不存在")
+        await self.session.commit()
+
     """ 流式输出回答，主要方案 """
 
     async def stream_answer(self,
@@ -235,6 +250,11 @@ class ChatService:
             self, state: RAGState, session: AsyncSession
     ) -> None:
         repo = ConversationRepository(session)
+        # 如果是首次提问，会话还没有任何消息，将标题改为本次问题
+        if await repo.count_messages(state["conversation_id"]) == 0:
+            await repo.update_title_if_default(
+                state["conversation_id"], state["question"]
+            )
         user_msg = ConversationRepository.make_user_message(
             state['conversation_id'], content=state["question"]
         )
