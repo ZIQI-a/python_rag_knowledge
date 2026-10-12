@@ -1,13 +1,14 @@
 // 对话页面
 
-import {Input, Typography, Alert, Avatar, Button, Empty, Space, Spin, message as antdMessage} from "antd";
+import {Alert, Avatar, Button, Empty, Input, Layout, message as antdMessage, Space, Spin, Tag, Typography} from "antd";
 import {
     type AgentStep,
     type CitationRead,
     createConversation,
     getConversation,
     type MessageRead,
-    type QueryRouteRead
+    type QueryRouteRead,
+    type VerifyResultRead
 } from "@/client";
 import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
 import React, {useEffect, useMemo, useRef, useState} from "react";
@@ -21,12 +22,18 @@ import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {QueryRoutePanel} from "@/components/QueryRoutePanel.tsx";
 import {AgentStepsPanel} from "@/components/AgentStepsPanel.tsx";
+import {conversationsQueryKey} from "@/api/queryKeys.ts";
+import {ConversationSidebar} from "@/components/ConversationSidebar.tsx";
+
 
 const {Title, Paragraph, Text} = Typography
 const {TextArea} = Input
+const {Sider, Content} = Layout
 // 本地存储的key
 const STORAGE_KEY = 'rag.chat.conversation_id'
 const CITATION_HASH_PREFIX = '#cite-'
+
+const REFUSAL_ANSWER = '啊哦，知识库中没有找到与该问题相关的可靠依据'
 
 type AssistantStatus = 'streaming' | 'done' | 'error'
 
@@ -37,6 +44,8 @@ interface UiMessage {
     citations: CitationRead[]
     queryRoute?: QueryRouteRead | null // Query路由策略
     agentSteps?: AgentStep[] | null
+    verifyResult?: VerifyResultRead | null
+    refused?: boolean
     status?: AssistantStatus
     error?: string | null
 }
@@ -49,6 +58,8 @@ function fromServerMessage(m: MessageRead): UiMessage {
         content: m.content,
         queryRoute: m.query_route ?? null,
         agentSteps: m.agent_steps ?? null,
+        verifyResult: m.verify_result ?? null,
+        refused: m.role === 'assistant' && m.content === REFUSAL_ANSWER,
         citations: m.citations ?? [],
         status: 'done',
     }
@@ -74,20 +85,23 @@ export function ChatPage() {
     // 创建会话
     const createMutation = useMutation({
         mutationFn: async () => {
-            const res = await createConversation({ body: {title: '新会话'} });
+            const res = await createConversation({body: {title: '新会话'}});
             return res.data!
         },
-        onSuccess: (conversation) => {
+        onSuccess: async (conversation) => {
             setConversationId(conversation.id)
             localStorage.setItem(STORAGE_KEY, conversation.id)
             setPendingMessages([])
-            queryClient.removeQueries({ queryKey: ['conversation'] })
+            queryClient.removeQueries({queryKey: ['conversation']})
+            await queryClient.invalidateQueries({queryKey: conversationsQueryKey})
         }
     })
+
+
     // 没有Conversation ID时创建一个
     const createConversationMutate = createMutation.mutate
     useEffect(() => {
-        if(!conversationId && !initialConversationRequested.current) {
+        if (!conversationId && !initialConversationRequested.current) {
             // 严格模式下 effect 可能重复执行，只创建一次初始会话。
             initialConversationRequested.current = true
             createConversationMutate()
@@ -98,7 +112,7 @@ export function ChatPage() {
     const historyQuery = useQuery({
         queryKey: ['conversation', conversationId],
         queryFn: async () => {
-            const res = await getConversation({ path: { conversation_id: conversationId! } })
+            const res = await getConversation({path: {conversation_id: conversationId!}})
             return res.data!
         },
         enabled: Boolean(conversationId)
@@ -106,7 +120,7 @@ export function ChatPage() {
 
     // 历史消息变化
     useEffect(() => {
-        if(historyQuery.data) {
+        if (historyQuery.data) {
             // eslint-disable-next-line react-hooks/set-state-in-effect
             setPendingMessages([])
         }
@@ -119,7 +133,7 @@ export function ChatPage() {
 
     // 自动滚动到底部
     useEffect(() => {
-        scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+        scrollRef.current?.scrollTo({top: scrollRef.current.scrollHeight, behavior: 'smooth'});
     }, [allMessages])
     // 组件卸载或先前对话时取消进行中的请求
     useEffect(() => {
@@ -132,26 +146,45 @@ export function ChatPage() {
         abortRef.current?.abort()
         createMutation.mutate()
     }
+    // 处理选择对话
+    const handleSelectConversation = (id: string) => {
+        if (id === conversationId) return
+        abortRef.current?.abort()
+        setPendingMessages([])
+        setIsStreaming(false)
+        localStorage.setItem(STORAGE_KEY, id)
+        setConversationId(id)
+    }
+    // 处理删除对话
+    const handleConversationDeleted = (deletedId: string) => {
+        if (deletedId !== conversationId) return
+        abortRef.current?.abort()
+        setPendingMessages([])
+        setIsStreaming(false)
+        localStorage.removeItem(STORAGE_KEY)
+        setConversationId(null)
+        queryClient.removeQueries({queryKey: ['conversation', deletedId]})
+    }
     /**
      * 发送消息的核心逻辑
      */
-    // 更新assistant消息
+        // 更新assistant消息
     const updateAssistant = (updater: (prev: UiMessage) => UiMessage) => {
-        setPendingMessages((prev) => {
-            if (prev.length === 0) return prev;
-            const lastIdx = prev.length - 1;
-            const last = prev[lastIdx];
-            if(!last) return prev;
-            const next = prev.slice()
-            next[lastIdx] = updater(last)
-            return next
-        })
-    }
+            setPendingMessages((prev) => {
+                if (prev.length === 0) return prev;
+                const lastIdx = prev.length - 1;
+                const last = prev[lastIdx];
+                if (!last) return prev;
+                const next = prev.slice()
+                next[lastIdx] = updater(last)
+                return next
+            })
+        }
     // 发送消息
     const handleSend = async () => {
         // 用户输入的草稿内容读出，然后将对话框设置为空
         const question = draft.trim();
-        if(!question || !conversationId || isStreaming) return;
+        if (!question || !conversationId || isStreaming) return;
         setDraft('')
         const userMsg: UiMessage = {
             id: `local-user-${Date.now()}`,
@@ -186,28 +219,53 @@ export function ChatPage() {
                         case "start":
                             break
                         case 'query_route':
-                            updateAssistant((prev) => ({ ...prev, queryRoute: event.queryRoute }))
+                            updateAssistant((prev) => ({...prev, queryRoute: event.queryRoute}))
                             break
                         case 'agent_steps':
-                            updateAssistant((prev) => ({ ...prev, agentSteps: event.steps }))
+                            updateAssistant((prev) => ({...prev, agentSteps: event.steps}))
                             break
                         case 'citations':
-                            updateAssistant((prev) => ({ ...prev, citations: event.citations}))
+                            updateAssistant((prev) => ({...prev, citations: event.citations}))
                             break
                         case 'token':
-                            updateAssistant((prev) => ({ ...prev, content: prev.content + event.delta }))
+                            updateAssistant((prev) => ({...prev, content: prev.content + event.delta}))
+                            break
+                        case 'verify_result':
+                            updateAssistant((prev) => {
+                                const verifyResult: VerifyResultRead = {
+                                    verified: event.verified,
+                                    reason: event.reason
+                                }
+                                if (!event.verified && event.replacementAnswer) {
+                                    return {
+                                        ...prev,
+                                        content: event.replacementAnswer,
+                                        citations: [],
+                                        refused: true,
+                                        verifyResult,
+                                    }
+                                }
+                                return {...prev, verifyResult}
+                            })
                             break
                         case 'end':
-                            updateAssistant((prev) => ({ ...prev, status: 'done' }))
+                            updateAssistant((prev) => ({
+                                ...prev,
+                                status: 'done',
+                                refused: prev.refused || event.refused
+                            }))
                             break
                         case 'error':
-                            updateAssistant((prev) => ({ ...prev, status: 'error', error: event.message }))
+                            updateAssistant((prev) => ({...prev, status: 'error', error: event.message}))
                             break
                     }
                 },
             })
-
-            await queryClient.invalidateQueries({ queryKey: ['conversation', conversationId] })
+            // 刷新对话数据
+            await Promise.all([
+                queryClient.invalidateQueries({queryKey: ['conversation', conversationId]}),
+                queryClient.invalidateQueries({queryKey: conversationsQueryKey})
+            ])
         } catch (err) {
             const fallback = err instanceof Response ? await formatApiError(err) : (err as Error).message
             updateAssistant((prev) => ({
@@ -224,7 +282,7 @@ export function ChatPage() {
 
     // 按下Enter键发送消息( 绑定快捷键)
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-        if(e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+        if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
             e.preventDefault()
             handleSend()
         }
@@ -234,60 +292,56 @@ export function ChatPage() {
      * 最终渲染UI
      */
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 160px)' }}>
-            {/*顶部标题和操作按钮*/}
-            <Space style={{ marginBottom: 12, justifyContent: 'space-between', display: 'flex' }}>
-                <div>
-                    <Title level={3} style={{ marginBottom: 0 }}>知识库问答</Title>
-                    <Paragraph type="secondary" style={{ marginBottom: 0 }}>
-                        对已经上传的文档进行检索增强问答，引用来源可点击跳转原文档
-                    </Paragraph>
-                </div>
-                <Button icon={<PlusOutlined />} onClick={handleNewConversation} disabled={isStreaming}>
-                    新对话
-                </Button>
-            </Space>
-            {/*问题展示框*/}
-            <div
-                ref={scrollRef}
-                style={{
-                    flex: 1,
-                    overflowY: 'auto',
-                    background: '#fff',
-                    padding: 24,
-                    borderRadius: 8,
-                    border: '1px solid #e8e8e8'
-                }}
+
+        <Layout style={{
+            height: 'calc(100vh - 160px)',
+            background: '#fff',
+            borderRadius: 8,
+            overflow: "hidden",
+            border: '1px solid #f0f0f0'
+        }}>
+            {/*右侧会话列表展示*/}
+            <Sider
+                width={260}
+                theme={"light"}
+                style={{borderRight: '1px solid #f0f0f0', background: '#fafafa'}}
             >
-                {historyQuery.isLoading ? (
-                    <Spin />
-                ) : allMessages.length === 0 ? (
-                    <Empty description="还没有问题，请在下方输入问题" />
-                ) : (
-                    allMessages.map((msg) => <MessageBubble key={msg.id} message={msg} />)
-                )}
-            </div>
-            {/*发送消息框和发送按钮*/}
-            <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
-                <TextArea
-                    value={draft}
-                    onChange={(e) => setDraft(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="请输入问题，按Enter发送，Shift+Enter换行"
-                    autoSize={{ minRows: 2, maxRows: 6 }}
-                    disabled={!conversationId || isStreaming}
-                />
-                <Button
-                    type="primary"
-                    icon={<SendOutlined />}
-                    onClick={handleSend}
-                    loading={isStreaming}
-                    disabled={!conversationId || !draft.trim()}
+                <ConversationSidebar currentId={conversationId} onSelect={handleSelectConversation}
+                                     onDeleted={handleConversationDeleted} onCreateNew={handleNewConversation}
+                                     isCreating={createMutation.isPending} />
+            </Sider>
+            {/*左侧展示会话具体内容*/}
+            <Content style={{ display: 'flex', flexDirection: 'column' }}>
+                <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
+                    {historyQuery.isLoading ? (
+                        <Spin/>
+                    ) : allMessages.length === 0 ? (
+                        <Empty description="还没有问题，请在下方输入问题"/>
+                    ) : (
+                        allMessages.map((msg) => <MessageBubble key={msg.id} message={msg}/>)
+                    )}
+                </div>
+                <div style={{marginTop: 12, display: 'flex', gap: 8}}>
+                    <TextArea
+                        value={draft}
+                        onChange={(e) => setDraft(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        placeholder="请输入问题，按Enter发送，Shift+Enter换行"
+                        autoSize={{minRows: 2, maxRows: 6}}
+                        disabled={!conversationId || isStreaming}
+                    />
+                    <Button
+                        type="primary"
+                        icon={<SendOutlined/>}
+                        onClick={handleSend}
+                        loading={isStreaming}
+                        disabled={!conversationId || !draft.trim()}
                     >
-                    发送
-                </Button>
-            </div>
-        </div>
+                        发送
+                    </Button>
+                </div>
+            </Content>
+        </Layout>
     )
 }
 
@@ -296,20 +350,21 @@ export function ChatPage() {
  */
 
 // 将回答的引用编号改写成Markdown Hash链接
-function linkifyCitations(content: string, maxIndex: number, messageId: string): string{
-    if(maxIndex <= 0) return content;
+function linkifyCitations(content: string, maxIndex: number, messageId: string): string {
+    if (maxIndex <= 0) return content;
     return content.replace(/\[(\d+)\]/g, (raw, num: string) => {
         const n = Number(num)
-        if(n < 1 || n > maxIndex) return raw
+        if (n < 1 || n > maxIndex) return raw
         return `[[${n}]](${CITATION_HASH_PREFIX}${messageId}-${n})`
     })
 }
+
 // 创建Markdown组件，处理引用点击事件
 function createMarkdownComponents(onCitationClick: (n: number) => void) {
     return {
         a: (props: React.ComponentProps<'a'>) => {
             const href = props.href ?? ''
-            if(href.startsWith(CITATION_HASH_PREFIX)) {
+            if (href.startsWith(CITATION_HASH_PREFIX)) {
                 const n = Number(href.split('-').pop())
                 return (
                     <a
@@ -317,25 +372,54 @@ function createMarkdownComponents(onCitationClick: (n: number) => void) {
                         href={href}
                         onClick={(e) => {
                             e.preventDefault()
-                            if(Number.isFinite(n)) onCitationClick(n)
+                            if (Number.isFinite(n)) onCitationClick(n)
                         }}
-                        />
+                    />
                 )
             }
-            return <a {...props} target="_blank" rel="noreferrer" />
+            return <a {...props} target="_blank" rel="noreferrer"/>
         },
         ...gfmComponents,
     }
+}
+
+/**
+ * Assistant气泡顶部状态条用于拒答提示和校验结果
+ */
+function AssistantHeader({ message }: { message: UiMessage }) {
+    if (message.refused) {
+        return (
+            <Alert
+                type="warning"
+                showIcon
+                title="未在知识库中找到可靠依据"
+                description={
+                    message.verifyResult && message.verifyResult.verified === false
+                        ? `答案校验未通过: ${message.verifyResult.reason ?? '缺乏引用'}, 已替换为巨=拒答` : undefined
+                }
+                style={{ marginBottom: 8 }}
+            />
+        )
+    }
+    if (message.verifyResult?.verified === true) {
+        return (
+            <div style={{ marginBottom: 8 }}>
+                <Tag color="green">已校验</Tag>
+            </div>
+        )
+    }
+    return null
 }
 
 // 消息二次重构时处理组件，包括引用链接跳转、样式修复
 interface MessageBubbleProps {
     message: UiMessage
 }
+
 function MessageBubble({message}: MessageBubbleProps) {
     const isUser = message.role === 'user'
     const citationRef = useRef<CitationListHandle>(null)
-    const [selectedCitation, setSelectedCitation] = useState<{n: number} | null>(null)
+    const [selectedCitation, setSelectedCitation] = useState<{ n: number } | null>(null)
     // 点击时记录引用编号，渲染完成后再操作引用面板。
     useEffect(() => {
         if (selectedCitation) citationRef.current?.expandAndScroll(selectedCitation.n)
@@ -358,8 +442,8 @@ function MessageBubble({message}: MessageBubbleProps) {
             }}
         >
             <Avatar
-                icon={isUser ? <UserOutlined /> : <RobotOutlined />}
-                style={{ background: isUser ? '#1890ff' : '#f56a00', flexShrink: 0 }}
+                icon={isUser ? <UserOutlined/> : <RobotOutlined/>}
+                style={{background: isUser ? '#1890ff' : '#f56a00', flexShrink: 0}}
             />
             <div
                 style={{
@@ -370,11 +454,12 @@ function MessageBubble({message}: MessageBubbleProps) {
                 }}
             >
                 {message.error ? (
-                    <Alert type="error" title={message.error} style={{ marginBottom: 8 }} />
+                    <Alert type="error" title={message.error} style={{marginBottom: 8}}/>
                 ) : null}
+                {!isUser ? <AssistantHeader message={message} /> : null }
                 {message.content ? (
                     isUser ? (
-                        <Text style={{ whiteSpace: 'pre-wrap' }}>{message.content}</Text>
+                        <Text style={{whiteSpace: 'pre-wrap'}}>{message.content}</Text>
                     ) : (
                         <Markdown remarkPlugins={[remarkGfm]} components={components}>
                             {renderedContent}
@@ -386,13 +471,13 @@ function MessageBubble({message}: MessageBubbleProps) {
                     </Text>
                 ) : null}
                 {!isUser && message.queryRoute ? (
-                    <QueryRoutePanel queryRoute={message.queryRoute} />
+                    <QueryRoutePanel queryRoute={message.queryRoute}/>
                 ) : null}
                 {!isUser && message.agentSteps && message.agentSteps.length > 0 ? (
-                    <AgentStepsPanel steps={message.agentSteps} />
+                    <AgentStepsPanel steps={message.agentSteps}/>
                 ) : null}
                 {!isUser && message.citations.length > 0 ? (
-                    <CitationList ref={citationRef} citations={message.citations} messageId={message.id} />
+                    <CitationList ref={citationRef} citations={message.citations} messageId={message.id}/>
                 ) : null}
             </div>
         </div>
