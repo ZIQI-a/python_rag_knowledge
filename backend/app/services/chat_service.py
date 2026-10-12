@@ -92,7 +92,7 @@ class ChatService:
         self.session = session
 
     # 创建新对话
-    async def create_conversation(self, title: str = "新对话") -> Conversation:
+    async def create_conversation(self, title: str = "新会话") -> Conversation:
         repo = ConversationRepository(self.session)
         conversation = await repo.create(title=title)
         await self.session.commit()

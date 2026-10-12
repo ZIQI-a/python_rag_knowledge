@@ -61,7 +61,7 @@ class VerifyResultRead(BaseModel):
 
 # 创建对话请求体
 class ConversationCreate(BaseModel):
-    title: str = Field("新对话", max_length=256, min_length=1)
+    title: str = Field("新会话", max_length=256, min_length=1)
 
 # 读取对话响应体
 class ConversationRead(BaseModel):

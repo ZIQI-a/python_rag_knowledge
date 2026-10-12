@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 
 from app.db.models import Conversation, Message, MessageRole
 
-DEFAULT_CONVERSATION_TITLE = "新对话"
+DEFAULT_CONVERSATION_TITLE = "新会话"
 
 class ConversationRepository:
     def __init__(self, session: AsyncSession) -> None:
