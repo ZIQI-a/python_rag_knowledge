@@ -177,14 +177,14 @@ class ChatService:
                 }
 
                 # 4 retrieve,搜索分析含距达判定，先把引用放在前端，让资料面板可见
-                citations_payload = [
+                citations_payload = (
                     []
                     if state.get("refused")
                     else [
                         _serialize_citation(c, ordinal=i)
                         for i, c in enumerate(state.get("retrieved_chunks", []), start=1)
                     ]
-                ]
+                )
                 yield {
                     "event": "citations",
                     "data": {"citations": citations_payload},

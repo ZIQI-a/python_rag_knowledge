@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 from app.core.logging import get_logger
 from app.llm.models import get_chat_model
-from app.llm.prompts import build_verify_answer_messages
+from app.llm.prompts import build_verify_answer_messages, format_context
 from app.retrieval.vector_retriever import RetrievedChunk
 
 logger = get_logger(__name__)
@@ -51,7 +51,7 @@ def _parse_result(raw: str) -> VerifyResult:
             text = text[4:]
         text = text.strip()
     try:
-        data = json.load(text)
+        data = json.loads(text)
     except json.JSONDecodeError:
         logger.warning("问题，认证JSON解析失败，降级, verified=True: raw=%r", raw)
         return VerifyResult(verified=True, reason="verified_parse_failed")

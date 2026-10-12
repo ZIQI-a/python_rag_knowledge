@@ -1,6 +1,6 @@
 // 对话页面
 
-import {Alert, Avatar, Button, Empty, Input, Layout, message as antdMessage, Space, Spin, Tag, Typography} from "antd";
+import {Alert, Avatar, Button, Empty, Input, Layout, message as antdMessage, Spin, Tag, Typography} from "antd";
 import {
     type AgentStep,
     type CitationRead,
@@ -15,7 +15,7 @@ import React, {useEffect, useMemo, useRef, useState} from "react";
 import type {ChatStreamEvent} from "@/api/chatStream.ts";
 import {streamChat} from "@/api/chatStream.ts";
 import {formatApiError} from "@/utils/errors.ts";
-import {PlusOutlined, RobotOutlined, SendOutlined, UserOutlined} from "@ant-design/icons";
+import {RobotOutlined, SendOutlined, UserOutlined} from "@ant-design/icons";
 import {gfmComponents} from "@/components/markdownComponents.tsx";
 import {CitationList, type CitationListHandle} from "@/components/CitationList.tsx";
 import Markdown from "react-markdown";
@@ -26,7 +26,7 @@ import {conversationsQueryKey} from "@/api/queryKeys.ts";
 import {ConversationSidebar} from "@/components/ConversationSidebar.tsx";
 
 
-const {Title, Paragraph, Text} = Typography
+const {Text} = Typography
 const {TextArea} = Input
 const {Sider, Content} = Layout
 // 本地存储的key
@@ -257,6 +257,8 @@ export function ChatPage() {
                             break
                         case 'error':
                             updateAssistant((prev) => ({...prev, status: 'error', error: event.message}))
+                            // 同时弹全局提示：流结束后历史刷新会清空 pending 消息，避免错误被静默吞掉
+                            antdMessage.error(event.message)
                             break
                     }
                 },

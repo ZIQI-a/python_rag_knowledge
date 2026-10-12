@@ -144,7 +144,20 @@ function ConversationItem({
                     </Tooltip>
                 </Popconfirm>
             ]}
-            />
+        >
+            <div style={{ minWidth: 0 }}>
+                <Text
+                    strong={isActive}
+                    ellipsis={{ tooltip: item.title }}
+                    style={{ display: 'block', maxWidth: 150 }}
+                >
+                    {item.title}
+                </Text>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                    {formatRelativeTime(item.updated_at)}
+                </Text>
+            </div>
+        </List.Item>
     )
 }
 
