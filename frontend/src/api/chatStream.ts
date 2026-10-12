@@ -40,12 +40,21 @@ export interface ChatErrorEvent {
     message: string
 }
 
+// 大模型输出验证结果
+export interface ChatVerifyResultEvent {
+    type: 'verify_result'
+    verified: boolean
+    reason: string | null
+    replacementAnswer: string | null
+}
+
 export type ChatStreamEvent =
     | ChatStartEvent
     | ChatQueryRouteEvent
     | ChatCitationsEvent
     | ChatEndEvent
     | ChatTokenEvent
+    | ChatVerifyResultEvent
     | ChatErrorEvent
     | ChatAgentStepsEvent
 
@@ -97,6 +106,14 @@ export async function streamChat({
                         break
                     case 'token':
                         onEvent({ type: 'token', delta: data.delta ?? '' })
+                        break
+                    case 'verify_result':
+                        onEvent({
+                            type: 'verify_result',
+                            verified: Boolean(data.verified),
+                            reason: data.reason ?? null,
+                            replacementAnswer: data.replacement_answer ?? null,
+                        })
                         break
                     case 'message_end':
                         onEvent({
