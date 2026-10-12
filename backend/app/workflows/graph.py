@@ -56,7 +56,7 @@ def _build_graph():
     builder.add_conditional_edges(
         "observe_context",
         _after_observe,
-        {"plan": "plan_retrieval", "rerank": rerank},
+        {"plan": "plan_retrieval", "rerank": "rerank"},
     )
     builder.add_edge("rerank", "judge_context")
     builder.add_conditional_edges(
