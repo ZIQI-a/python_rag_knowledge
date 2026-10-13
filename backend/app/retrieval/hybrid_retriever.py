@@ -2,6 +2,8 @@
 import asyncio
 from uuid import UUID
 
+from langsmith import traceable
+
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.db.session import AsyncSessionLocal
@@ -29,6 +31,7 @@ class HybridRetriever:
             return []
 
     """ 两路独立Session并发返回 """
+    @traceable(name="HybridRetriever.search", run_type="retriever")
     async def search(
             self,
             query: str,

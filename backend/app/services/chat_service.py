@@ -2,6 +2,7 @@
 from collections.abc import AsyncIterator
 from uuid import UUID
 
+from langsmith import traceable
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -130,7 +131,7 @@ class ChatService:
         await self.session.commit()
 
     """ 流式输出回答，主要方案 """
-
+    @traceable(name="ChatService.stream_answer", run_type="chain")
     async def stream_answer(self,
                             conversation_id: UUID, question: str) -> AsyncIterator[dict]:
         """逐事件 yield SSE 载荷。
