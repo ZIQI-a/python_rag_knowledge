@@ -99,7 +99,7 @@ class QueryRewriter:
         if not history_text:
             return question
         try:
-            messages = build_contextualize_messages(question=question, histor=history_text)
+            messages = build_contextualize_messages(question=question, history=history_text)
             response = await get_chat_model().ainvoke(messages)
             rewritten = _extract_text(response.content).strip()
             return rewritten or question

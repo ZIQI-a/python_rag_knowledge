@@ -13,7 +13,7 @@ def _after_plan(state: RAGState) -> str:
     if state.get("agent_steps"):
         last_action = state["agent_steps"][-1].get("action")
         if last_action == "refuse":
-            return "end"
+            return "refuse"
     return "retrieve"
 
 """ 执行observer context之后，决定继续循环还是结束 """
