@@ -37,4 +37,6 @@ class RAGState(TypedDict, total=False):
 
     user_message_id: UUID
     assistant_message_id: UUID
+    # trace id
+    trace_id: str | None
 

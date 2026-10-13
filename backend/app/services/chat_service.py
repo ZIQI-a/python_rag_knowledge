@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.exceptions import NotFoundError
 from app.core.logging import get_logger
+from app.core.observbility import get_current_trace_id, build_trace_url
 from app.db.models import Conversation, Message, AnswerCitation
 from app.db.repositories.citation_repo import AnswerCitationRepository
 from app.db.repositories.conversation_repo import ConversationRepository
@@ -119,7 +120,7 @@ class ChatService:
     async def list_conversation(
             self, page: int, page_size: int
     ) -> tuple[list[tuple[Conversation, int]], int]:
-        repo  = ConversationRepository(self.session)
+        repo = ConversationRepository(self.session)
         return await repo.list_page(page=page, page_size=page_size)
 
     # 删除会话
@@ -131,6 +132,7 @@ class ChatService:
         await self.session.commit()
 
     """ 流式输出回答，主要方案 """
+
     @traceable(name="ChatService.stream_answer", run_type="chain")
     async def stream_answer(self,
                             conversation_id: UUID, question: str) -> AsyncIterator[dict]:
@@ -148,9 +150,11 @@ class ChatService:
 
         async with AsyncSessionLocal() as session:
             try:
+                trace_id = get_current_trace_id()
                 state: RAGState = {
                     "conversation_id": conversation_id,
                     "question": question,
+                    "trace_id": trace_id
                 }
 
                 # 1 加载上下文（仅历史消息), 加载路由
@@ -164,7 +168,9 @@ class ChatService:
 
                 yield {
                     "event": "message_start",
-                    "data": {"user_message_id": str(state["user_message_id"])},
+                    "data": {"user_message_id": str(state["user_message_id"]),
+                             "trace_id": trace_id,
+                             "trace_url": build_trace_url(trace_id)},
                 }
                 # 把query流结果推送到前端,前端通过Router选择
                 yield {
@@ -274,7 +280,8 @@ class ChatService:
         extra_metadata = {
             "refused": bool(state.get("refused")),
             "query_route": _build_query_route_payload(state),
-            "agent_steps": _serialize_agent_steps(state)
+            "agent_steps": _serialize_agent_steps(state),
+            "trace_id": state.get("trace_id")
         }
         if verify_result is not None:
             extra_metadata["verify_result"] = _build_verify_payload(
