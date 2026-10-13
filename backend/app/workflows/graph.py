@@ -49,8 +49,9 @@ def _build_graph():
     builder.add_edge(START, "normalize_query")
     builder.add_edge("normalize_query", "route_query")
     builder.add_edge("route_query", "plan_retrieval")
+    # Planner 决定拒答时进入统一拒答节点，避免条件路由找不到目标。
     builder.add_conditional_edges(
-        "plan_retrieval", _after_plan, {"retrieve": "retrieve", "end": END}
+        "plan_retrieval", _after_plan, {"retrieve": "retrieve", "refuse": "refuse"}
     )
     builder.add_edge("retrieve", "observe_context")
     builder.add_conditional_edges(

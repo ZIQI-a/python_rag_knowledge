@@ -483,7 +483,7 @@ function MessageBubble({message}: MessageBubbleProps) {
                     </Text>
                 ) : null}
                 {!isUser && message.traceId ? (
-                    <TraceIdPanel traceId={message.traceId} traceUrl={message.traceUrl} />
+                    <TraceIdPanel traceId={message.traceId} traceUrl={message.traceUrl ?? null} />
                 ) : null}
                 {!isUser && message.queryRoute ? (
                     <QueryRoutePanel queryRoute={message.queryRoute}/>

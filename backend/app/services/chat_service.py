@@ -213,8 +213,9 @@ class ChatService:
 
                     # 6 最终答案llm校验(认证仅在不拒答情况下执行，因为拒答情况下已经有现成的拒答文案)
                     if settings.verify_answer_enabled:
+                        # 校验针对用户原问题，避免将 HyDE 假设答案当成问题。
                         verify_result = await get_answer_verifier().verify(
-                            question=state["query"],
+                            question=state["question"],
                             answer=state["answer"],
                             chunks=list(state.get("retrieved_chunks", []))
                         )
