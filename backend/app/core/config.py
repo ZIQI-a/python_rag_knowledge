@@ -67,9 +67,17 @@ class Settings(BaseSettings):
     """ AI输出答案二次校验 """
     verify_answer_enabled: bool = True
 
+    """ LangSmith可观测性配置 (第九章) """
+    langsmith_tracing: bool = False # 关掉后降级，不影响项目正常跑
+    langsmith_api_key: str = ""
+    langsmith_project: str = "rag-knowledge-base"
+    langsmith_endpoint: str = "https://api.smith.langchain.com"
+    langsmith_run_url_prefix: str = ""  # 包含Workspace信息是私有的，配置后才下发链接给前端
+
     @property
-    def effective_rerank_api_key(self) -> str:
-        return self.rerank_api_key or self.ai_api_key
+    def observability_enabled(self) -> bool:
+        """ LangSmith实际生效条件:打开开关且Key配置"""
+        return bool(self.langsmith_tracing and self.langsmith_api_key)
 
     @property
     def cos_configured(self) -> bool:
