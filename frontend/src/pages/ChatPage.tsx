@@ -24,6 +24,7 @@ import {QueryRoutePanel} from "@/components/QueryRoutePanel.tsx";
 import {AgentStepsPanel} from "@/components/AgentStepsPanel.tsx";
 import {conversationsQueryKey} from "@/api/queryKeys.ts";
 import {ConversationSidebar} from "@/components/ConversationSidebar.tsx";
+import {TraceIdPanel} from "@/components/TraceIdPanel.tsx";
 
 
 const {Text} = Typography
@@ -45,6 +46,8 @@ interface UiMessage {
     queryRoute?: QueryRouteRead | null // Query路由策略
     agentSteps?: AgentStep[] | null
     verifyResult?: VerifyResultRead | null
+    traceId?: string | null
+    traceUrl?: string | null
     refused?: boolean
     status?: AssistantStatus
     error?: string | null
@@ -59,6 +62,8 @@ function fromServerMessage(m: MessageRead): UiMessage {
         queryRoute: m.query_route ?? null,
         agentSteps: m.agent_steps ?? null,
         verifyResult: m.verify_result ?? null,
+        traceId: m.trace_id ?? null,
+        traceUrl: m.trace_url ?? null,
         refused: m.role === 'assistant' && m.content === REFUSAL_ANSWER,
         citations: m.citations ?? [],
         status: 'done',
@@ -217,6 +222,11 @@ export function ChatPage() {
                 onEvent: (event: ChatStreamEvent) => {
                     switch (event.type) {
                         case "start":
+                            updateAssistant((prev) => ({
+                                ...prev,
+                                traceId: event.traceId,
+                                traceUrl: event.traceUrl
+                            }))
                             break
                         case 'query_route':
                             updateAssistant((prev) => ({...prev, queryRoute: event.queryRoute}))
@@ -310,11 +320,11 @@ export function ChatPage() {
             >
                 <ConversationSidebar currentId={conversationId} onSelect={handleSelectConversation}
                                      onDeleted={handleConversationDeleted} onCreateNew={handleNewConversation}
-                                     isCreating={createMutation.isPending} />
+                                     isCreating={createMutation.isPending}/>
             </Sider>
             {/*左侧展示会话具体内容*/}
-            <Content style={{ display: 'flex', flexDirection: 'column' }}>
-                <div ref={scrollRef} style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
+            <Content style={{display: 'flex', flexDirection: 'column'}}>
+                <div ref={scrollRef} style={{flex: 1, overflowY: 'auto', padding: 24}}>
                     {historyQuery.isLoading ? (
                         <Spin/>
                     ) : allMessages.length === 0 ? (
@@ -388,7 +398,7 @@ function createMarkdownComponents(onCitationClick: (n: number) => void) {
 /**
  * Assistant气泡顶部状态条用于拒答提示和校验结果
  */
-function AssistantHeader({ message }: { message: UiMessage }) {
+function AssistantHeader({message}: { message: UiMessage }) {
     if (message.refused) {
         return (
             <Alert
@@ -399,13 +409,13 @@ function AssistantHeader({ message }: { message: UiMessage }) {
                     message.verifyResult && message.verifyResult.verified === false
                         ? `答案校验未通过: ${message.verifyResult.reason ?? '缺乏引用'}, 已替换为巨=拒答` : undefined
                 }
-                style={{ marginBottom: 8 }}
+                style={{marginBottom: 8}}
             />
         )
     }
     if (message.verifyResult?.verified === true) {
         return (
-            <div style={{ marginBottom: 8 }}>
+            <div style={{marginBottom: 8}}>
                 <Tag color="green">已校验</Tag>
             </div>
         )
@@ -458,7 +468,7 @@ function MessageBubble({message}: MessageBubbleProps) {
                 {message.error ? (
                     <Alert type="error" title={message.error} style={{marginBottom: 8}}/>
                 ) : null}
-                {!isUser ? <AssistantHeader message={message} /> : null }
+                {!isUser ? <AssistantHeader message={message}/> : null}
                 {message.content ? (
                     isUser ? (
                         <Text style={{whiteSpace: 'pre-wrap'}}>{message.content}</Text>
@@ -471,6 +481,9 @@ function MessageBubble({message}: MessageBubbleProps) {
                     <Text type="secondary">
                         <Spin size="small"/>正在加速检索...
                     </Text>
+                ) : null}
+                {!isUser && message.traceId ? (
+                    <TraceIdPanel traceId={message.traceId} traceUrl={message.traceUrl} />
                 ) : null}
                 {!isUser && message.queryRoute ? (
                     <QueryRoutePanel queryRoute={message.queryRoute}/>

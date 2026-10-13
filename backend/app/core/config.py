@@ -80,6 +80,11 @@ class Settings(BaseSettings):
         return bool(self.langsmith_tracing and self.langsmith_api_key)
 
     @property
+    def effective_rerank_api_key(self) -> str:
+        """ 优先使用重排密钥，未配置时使用默认AI密钥 """
+        return self.rerank_api_key or self.ai_api_key
+
+    @property
     def cos_configured(self) -> bool:
         return bool(self.cos_secret_id and self.cos_secret_key and self.cos_bucket)
 

@@ -5,6 +5,8 @@ import {fetchEventSource} from "@microsoft/fetch-event-source";
 
 export interface ChatStartEvent {
     type: 'start'
+    traceId: string | null
+    traceUrl: string | null
 }
 
 // 路由选择策略事件接口
@@ -12,6 +14,7 @@ export interface ChatQueryRouteEvent {
     type: 'query_route'
     queryRoute: QueryRouteRead
 }
+
 // agent步骤事件接口
 export interface ChatAgentStepsEvent {
     type: 'agent_steps'
@@ -65,24 +68,25 @@ interface StreamChatParams {
     onEvent: (event: ChatStreamEvent) => void
 }
 
-class FatalSseError extends Error {}
+class FatalSseError extends Error {
+}
 
 export async function streamChat({
-    conversationId,
-    question,
-    signal,
-    onEvent,
-}: StreamChatParams): Promise<void> {
+                                     conversationId,
+                                     question,
+                                     signal,
+                                     onEvent,
+                                 }: StreamChatParams): Promise<void> {
     await fetchEventSource(
         `/api/conversations/${conversationId}/chat`,
         {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ question }),
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({question}),
             signal,
             openWhenHidden: true,
             async onopen(response) {
-                if(response.ok && response.headers.get('content-type')?.includes('text/event-stream')) {
+                if (response.ok && response.headers.get('content-type')?.includes('text/event-stream')) {
                     return
                 }
                 const text = await response.text().catch(() => '')
@@ -93,19 +97,19 @@ export async function streamChat({
                 const data = msg.data ? JSON.parse(msg.data) : {}
                 switch (msg.event) {
                     case 'message_start':
-                        onEvent({type: 'start'})
+                        onEvent({type: 'start', traceId: data.traceId ?? null, traceUrl: data.traceUrl ?? null})
                         break
                     case 'query_route':
-                        onEvent({ type: 'query_route', queryRoute: data as QueryRouteRead })
+                        onEvent({type: 'query_route', queryRoute: data as QueryRouteRead})
                         break
                     case 'agent_steps':
-                        onEvent({ type: 'agent_steps', steps: (data.steps ?? []) as AgentStep[] })
+                        onEvent({type: 'agent_steps', steps: (data.steps ?? []) as AgentStep[]})
                         break
                     case 'citations':
                         onEvent({type: 'citations', citations: data.citations ?? []})
                         break
                     case 'token':
-                        onEvent({ type: 'token', delta: data.delta ?? '' })
+                        onEvent({type: 'token', delta: data.delta ?? ''})
                         break
                     case 'verify_result':
                         onEvent({
@@ -127,8 +131,11 @@ export async function streamChat({
                         break
                 }
             },
-            onclose() {},
-            onerror(err) {throw err}
+            onclose() {
+            },
+            onerror(err) {
+                throw err
+            }
         }
     )
 }
