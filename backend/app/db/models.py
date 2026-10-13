@@ -13,6 +13,7 @@ from sqlalchemy import (
     String,
     Text,
     func,
+    Float, Boolean, Index
 )
 from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR, UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -75,6 +76,20 @@ class Document(Base):
 # 文档切片
 class DocumentChunk(Base):
     __tablename__ = "document_chunks"
+
+    __table_args__ = (
+        Index(
+            "ix_document_chunks_embedding_hnsw",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_ops={"embedding": "vector_cosine_ops"}
+        ),
+        Index(
+            "ix_document_chunks_content_tsv",
+            "content_tsv",
+            postgresql_using="gin",
+        )
+    )
 
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
     document_id: Mapped[UUID] = mapped_column(
@@ -192,3 +207,96 @@ class AnswerCitation(Base):
     retrieval_meta: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     message: Mapped[Message] = relationship(back_populates="citations")
+
+""" 评测run的表模型结构:共两张表，一张一次执行的结果，一张每次执行下的多种分支结果"""
+# 评测程序执行的生命周期
+class EvaluationRunStatus(str, Enum):
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+class EvaluationRun(Base):
+    """ 评测执行表 """
+    __tablename__ = "evaluation_runs"
+
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    name: Mapped[str] = mapped_column(String(256), nullable=False)
+    dataset_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    dataset_size: Mapped[str] = mapped_column(Integer, nullable=False)
+    status: Mapped[EvaluationRunStatus] = mapped_column(String(16), nullable=False)
+
+    progress_total: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    progress_completed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    progress_failed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    faithfulness: Mapped[float | None] = mapped_column(Float, nullable=True) # 疑似造假分
+    answer_relevancy: Mapped[float | None] = mapped_column(Float, nullable=True) # 答案相关性评分
+    context_precision: Mapped[float | None] = mapped_column(Float, nullable=True) # 上下文精度评分
+    context_recall: Mapped[float | None] = mapped_column(Float, nullable=True) # 上下文召回评分
+    citation_hit_rate: Mapped[float | None] = mapped_column(Float, nullable=True) # 引用命中率
+    refusal_accuracy: Mapped[float | None] = mapped_column(Float, nullable=True) # 拒答正确率
+    avg_latency_ms: Mapped[float | None] = mapped_column(Float, nullable=True) # 平均耗时(毫秒)
+    # 首个token延迟
+    avg_first_token_latency_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(),nullable=False)
+
+    items: Mapped[list["EvaluationItem"]] = relationship(
+        back_populates="run",
+        cascade="all, delete-orphan",
+        passive_deletes=True # 不在应用层删，数据库层统一删除
+    )
+
+class EvaluationItem(Base):
+    """ 评测中每条Case具体表, 输入快照实际输出指标，Case归因 """
+    __tablename__ = "evaluation_items"
+
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    run_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("evaluation_runs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+
+    case_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    question: Mapped[str] = mapped_column(Text, nullable=False)
+    expected_answer: Mapped[str] = mapped_column(Text, nullable=False)
+    expected_document_names: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    expected_keywords: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    should_refuse: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    tags: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+
+    actual_answer: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    actual_refused: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    citations: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    retrieved_chunks_meta: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    query_route: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    agent_steps: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    verify_result: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    trace_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    latency_ms: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    first_token_latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # 相关的指标:RAGIS四项任意一项异常会落None，前端缺失隐藏单元格
+    faithfulness: Mapped[float | None] = mapped_column(Float, nullable=True)
+    answer_relevancy: Mapped[float | None] = mapped_column(Float, nullable=True)
+    context_precision: Mapped[float | None] = mapped_column(Float, nullable=True)
+    context_recall: Mapped[float | None] = mapped_column(Float, nullable=True)
+    citation_hit: Mapped[bool | None] = mapped_column(Boolean, nullable=True) # 引用是否命中
+    refusal_correct: Mapped[bool] = mapped_column(Boolean, nullable=True) # 拒答是否正确
+
+    # Badcase归因表，规则自动初判
+    is_bad_case: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False) # 是否坏案例
+    bad_case_category: Mapped[str | None] = mapped_column(String(64), nullable=True) # 归因类别
+    bad_case_note: Mapped[str | None] = mapped_column(Text, nullable=True) # 归因说明
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    run: Mapped[EvaluationRun] = relationship(back_populates="items")
