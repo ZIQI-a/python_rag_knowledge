@@ -1,7 +1,9 @@
 """ 问答流程 """
 from collections.abc import AsyncIterator
+from dataclasses import dataclass, field
 from uuid import UUID
 
+import time
 from langsmith import traceable
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -83,11 +85,26 @@ def _build_verify_payload(
 
 
 """ SSE和Meta共用的核载形式 """
-
-
 def _serialize_agent_steps(state: RAGState) -> list[dict]:
     return [dict(step) for step in state.get("agent_steps", [])]
 
+
+""" 评测专用 """
+
+@dataclass(frozen=True)
+class EvaluationAnswer:
+    """ 评测专用，跑一遍RAG拿到非流式的Answer结果;不写入数据库，与正常流式输出的答案不同 """
+    answer: str
+    refused: bool
+    chunks: list[RetrievedChunk]
+    query_route: dict
+    agent_steps: list[dict]
+    verify_result: VerifyResult | None
+    trace_id: str | None
+    latency_ms: int
+    first_token_latency_ms: int | None
+    error_message: str | None = None
+    citations: list[dict] = field(default_factory=list)
 
 class ChatService:
     def __init__(self, session: AsyncSession) -> None:
@@ -316,3 +333,83 @@ class ChatService:
             await citation_repo.bulk_add(citations)
         await session.commit()
         state["assistant_message_id"] = assistant_msg.id
+
+    """ 跑一遍完整RAG流程，拿非流式结果用于评测 """
+    @traceable(name="ChatService.answer_for_evaluation", run_type="chain")
+    async def answer_for_evaluation(self, question: str) -> EvaluationAnswer:
+        started_at = time.perf_counter()
+        trace_id = get_current_trace_id()
+        state: RAGState = {
+            "conversation_id": UUID(int=0),
+            "question": question,
+            "chat_history": [],
+            "trace_id": trace_id
+        }
+
+        try:
+            final_state = await get_rag_graph().ainvoke(state)
+            state.update(final_state)
+
+            verify_result: VerifyResult | None = None
+            first_token_latency_ms: int | None = None
+
+            if state.get("refused"):
+                answer = state["answer"]
+            else:
+                parts: list[str] = []
+                async for delta in stream_generate(state):
+                    if first_token_latency_ms is None:
+                        first_token_latency_ms = int(
+                            (time.perf_counter() - started_at) * 1000
+                        )
+                    parts.append(delta)
+                answer = "".join(parts)
+                state["answer"] = answer
+                # 进入认证，只有不拒绝的情况下才认证
+                if settings.verify_answer_enabled:
+                    verify_result = await get_answer_verifier().verify(
+                        question=question,
+                        answer=answer,
+                        chunks=list(state.get("retrieved_chunks", []))
+                    )
+                    if not verify_result.verified:
+                        answer = REFUSAL_ANSWER
+                        state["answer"] = answer
+                        state["refused"] = True
+
+            chunks = list(state.get("retrieved_chunks", []))
+            refused = bool(state.get("refused"))
+            citations = (
+                []
+                if refused else [_serialize_citation(c, ordinal=i) for i, c in enumerate(chunks, 1)]
+            )
+
+            return EvaluationAnswer(
+                answer=answer,
+                refused=refused,
+                chunks=chunks,
+                query_route=_build_query_route_payload(state),
+                agent_steps=_serialize_agent_steps(state),
+                verify_result=verify_result,
+                trace_id=trace_id,
+                latency_ms=int((time.perf_counter() - started_at) * 1000),
+                first_token_latency_ms=first_token_latency_ms,
+                citations=citations
+            )
+
+        except Exception as e:
+            logger.exception("评测答案失败: question=%r", question)
+            return EvaluationAnswer(
+                answer="",
+                refused=False,
+                chunks=[],
+                query_route=_build_query_route_payload(state),
+                agent_steps=_serialize_agent_steps(state),
+                verify_result=None,
+                trace_id=trace_id,
+                latency_ms=int((time.perf_counter() - started_at) * 1000),
+                first_token_latency_ms=None,
+                error_message=str(e).strip() or e.__class__.__name__
+            )
+
+
