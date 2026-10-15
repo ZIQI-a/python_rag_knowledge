@@ -1,11 +1,11 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import { RouterProvider } from 'react-router-dom'
-import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
-import { ConfigProvider } from 'antd'
+import {StrictMode} from 'react'
+import {createRoot} from 'react-dom/client'
+import {RouterProvider} from 'react-router-dom'
+import {QueryClient, QueryClientProvider} from "@tanstack/react-query";
+import {App as AntdApp, ConfigProvider} from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import './index.css'
-import { router } from './routes'
+import {router} from './routes'
 
 // 构建查询服务
 const queryClient = new QueryClient({
@@ -19,14 +19,16 @@ const queryClient = new QueryClient({
 })
 
 const root = document.getElementById('root')
-if(!root) throw new Error('根元素找不到')
+if (!root) throw new Error('根元素找不到')
 
 createRoot(root).render(
-  <StrictMode>
-    <ConfigProvider locale={zhCN} theme={{token: {colorPrimary: '#1677ff'}}}>
-        <QueryClientProvider client={queryClient}>
-            <RouterProvider router={router} />
-        </QueryClientProvider>
-    </ConfigProvider>
-  </StrictMode>,
+    <StrictMode>
+        <ConfigProvider locale={zhCN} theme={{token: {colorPrimary: '#1677ff'}}}>
+            <AntdApp>
+                <QueryClientProvider client={queryClient}>
+                    <RouterProvider router={router}/>
+                </QueryClientProvider>
+            </AntdApp>
+        </ConfigProvider>
+    </StrictMode>,
 )
