@@ -51,4 +51,4 @@ export function MetricsCard({ label, value, passthrough = false, hint, suffix }:
                 />
         </Card>
     )
-})
+}

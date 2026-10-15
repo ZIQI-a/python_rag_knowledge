@@ -262,28 +262,29 @@ async def _finalize_run(run_id: UUID) -> None:
             item.is_bad_case = rule.is_bad_case
             item.bad_case_category = rule.category
 
-            run = await EvaluationRunRepository(session).get(run_id)
-            if run is not None:
-                run.faithfulness = _avg([i.faithfulness for i in items])
-                run.answer_relevancy = _avg([i.answer_relevancy for i in items])
-                run.context_precision = _avg([i.context_precision for i in items])
-                run.context_recall = _avg([i.context_recall for i in items])
-                non_refusal_hits = [i.citation_hit for i in items if i.citation_hit is not None]
-                run.citation_hit_rate = (
-                    sum(1 for h in non_refusal_hits if h) / len(non_refusal_hits)
-                    if non_refusal_hits else None
-                )
-                run.refusal_accuracy = sum(1 for i in items if i.refusal_correct) / len(items)
-                run.avg_latency_ms = sum(i.latency_ms for i in items) / len(items)
-                first_token_values = [
-                    i.first_token_latency_ms for i in items if i.first_token_latency_ms is not None
-                ]
-                run.avg_first_token_latency_ms = (
-                    sum(first_token_values) / len(first_token_values)
-                    if first_token_values else None
-                )
+        # 全部 item 处理完后，一次性聚合 run 的汇总指标
+        run = await EvaluationRunRepository(session).get(run_id)
+        if run is not None:
+            run.faithfulness = _avg([i.faithfulness for i in items])
+            run.answer_relevancy = _avg([i.answer_relevancy for i in items])
+            run.context_precision = _avg([i.context_precision for i in items])
+            run.context_recall = _avg([i.context_recall for i in items])
+            non_refusal_hits = [i.citation_hit for i in items if i.citation_hit is not None]
+            run.citation_hit_rate = (
+                sum(1 for h in non_refusal_hits if h) / len(non_refusal_hits)
+                if non_refusal_hits else None
+            )
+            run.refusal_accuracy = sum(1 for i in items if i.refusal_correct) / len(items)
+            run.avg_latency_ms = sum(i.latency_ms for i in items) / len(items)
+            first_token_values = [
+                i.first_token_latency_ms for i in items if i.first_token_latency_ms is not None
+            ]
+            run.avg_first_token_latency_ms = (
+                sum(first_token_values) / len(first_token_values)
+                if first_token_values else None
+            )
 
-            await session.commit()
+        await session.commit()
 
 """ 以下是一些辅助函数 """
 

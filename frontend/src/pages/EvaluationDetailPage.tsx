@@ -37,7 +37,7 @@ export function EvaluationDetailPage() {
     const {data: items, isLoading} = useEvaluationItems(runId, {
         page, pageSize, badCaseOnly, category
     })
-    const [activeItem, setActiveItem] = useState<EvaluationItemRead>(null)
+    const [activeItem, setActiveItem] = useState<EvaluationItemRead | null>(null)
 
     const columns: ColumnsType<EvaluationItemRead> = [
         {title: 'Case ID', dataIndex: 'case_id', width: 100},
@@ -168,7 +168,9 @@ export function EvaluationDetailPage() {
                 key={activeItem?.id ?? 'none'}
                 runId={runId ?? ''}
                 item={activeItem}
-                onClose={() => setActiveItem(null)}
+                onClose={() => {
+                    setActiveItem(null);
+                }}
             />
         </div>
     )
@@ -198,7 +200,7 @@ function ItemDetailDrawer({
         <Drawer
             open={Boolean(item)}
             onClose={onClose}
-            title={item ? `Case ${item.case_id}: ''`}
+            title={item ? `Case ${item.case_id}`: '-'}
             width={720}
             destroyOnHidden
         >

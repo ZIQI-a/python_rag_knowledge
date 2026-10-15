@@ -2,7 +2,7 @@
 import asyncio
 from dataclasses import dataclass
 
-from ragas import EvaluationDataset, SingleTurnSample
+from ragas import EvaluationDataset, SingleTurnSample, evaluate
 from ragas.metrics import (
     faithfulness,
     answer_relevancy,

@@ -38,7 +38,7 @@ export function useEvaluationDatasets() {
  */
 export function useEvaluationRuns(page = 1, pageSize = 20) {
     return useQuery({
-        queryKey: [...evaluationRunKey, page, pageSize],
+        queryKey: [...evaluationRunsKey, page, pageSize],
         queryFn: async () => (
             await sdkListEvaluationRuns({ query: { page, page_size: pageSize } })
         ).data,
@@ -125,7 +125,7 @@ export function useDeleteEvaluationRun() {
         mutationFn: async (runId: string) =>
             sdkDeleteEvaluationRun({ path: { run_id: runId } }),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: evaluationDatasetsKey })
+            queryClient.invalidateQueries({ queryKey: evaluationRunsKey })
         }
     })
 }
