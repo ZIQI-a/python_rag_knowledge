@@ -222,7 +222,7 @@ class EvaluationRun(Base):
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
     name: Mapped[str] = mapped_column(String(256), nullable=False)
     dataset_name: Mapped[str] = mapped_column(String(128), nullable=False)
-    dataset_size: Mapped[str] = mapped_column(Integer, nullable=False)
+    dataset_size: Mapped[int] = mapped_column(Integer, nullable=False)
     status: Mapped[EvaluationRunStatus] = mapped_column(String(16), nullable=False)
 
     progress_total: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

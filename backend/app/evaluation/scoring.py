@@ -65,6 +65,7 @@ def classify_bad_case(
         context_recall: float | None,
         has_error: bool
 ) -> BadCaseRule:
+    """ 归因主函数 """
     if has_error:
         return BadCaseRule(is_bad_case=True, category="other")
 
