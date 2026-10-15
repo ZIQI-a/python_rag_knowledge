@@ -1,5 +1,5 @@
 import {Layout, Menu} from "antd";
-import {DashboardOutlined, FileTextOutlined, MessageOutlined} from "@ant-design/icons";
+import {DashboardOutlined, ExperimentOutlined, FileTextOutlined, MessageOutlined} from "@ant-design/icons";
 import {Link, Outlet, useLocation} from 'react-router-dom';
 
 
@@ -21,12 +21,18 @@ const menuItems = [
         icon: <MessageOutlined />,
         label: <Link to={'/chat'}>万事知</Link>,
     },
+    {
+        key: '/evaluation',
+        icon: <ExperimentOutlined />,
+        label: <Link to={'/evaluation'}>评测分析</Link>,
+    },
 ]
 
 // 使选中的菜单保持高亮
 function resolveSelectedKey(pathname: string): string {
     if(pathname.startsWith('/documents')) return '/documents';
     if(pathname.startsWith('/chat')) return '/chat';
+    if(pathname.startsWith('/evaluation')) return '/evaluation';
     return '/'
 }
 
