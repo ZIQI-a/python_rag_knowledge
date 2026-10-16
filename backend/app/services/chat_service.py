@@ -18,9 +18,11 @@ from app.db.session import AsyncSessionLocal
 from app.llm.answer_verifier import VerifyResult, get_answer_verifier
 from app.llm.prompts import REFUSAL_ANSWER
 from app.retrieval.vector_retriever import RetrievedChunk
+from app.services.permission_service import WILDCARD_PERMISSION_TAG, compute_user_permission_tags
 from app.workflows.graph import get_rag_graph
 from app.workflows.nodes import load_context, stream_generate
 from app.workflows.rag_state import RAGState
+from app.db.models import User
 
 # 导入日志模块
 logger = get_logger(__name__)
@@ -111,39 +113,39 @@ class ChatService:
         self.session = session
 
     # 创建新对话
-    async def create_conversation(self, title: str = "新会话") -> Conversation:
+    async def create_conversation(self, title: str = "新会话", user_id: UUID | None = None) -> Conversation:
         repo = ConversationRepository(self.session)
-        conversation = await repo.create(title=title)
+        conversation = await repo.create(title=title, user_id=user_id)
         await self.session.commit()
         await self.session.refresh(conversation)
         return conversation
 
     # 获取对话
-    async def get_conversation(self, conversation_id: UUID) -> Conversation | None:
+    async def get_conversation(self, conversation_id: UUID, user_id: UUID | None = None) -> Conversation | None:
         repo = ConversationRepository(self.session)
-        conversation = await repo.get(conversation_id)
+        conversation = await repo.get(conversation_id, user_id=user_id)
         if conversation is None:
             raise NotFoundError("会话不存在")
         return conversation
 
     # 获取对话历史消息
-    async def list_messages(self, conversation_id: UUID) -> tuple[Conversation | None, list[Message]]:
-        conversation = await self.get_conversation(conversation_id)
+    async def list_messages(self, conversation_id: UUID, user_id: UUID | None = None) -> tuple[Conversation | None, list[Message]]:
+        conversation = await self.get_conversation(conversation_id, user_id=user_id)
         repo = ConversationRepository(self.session)
         messages = await repo.list_message(conversation_id)
         return conversation, messages
 
     # 展示会话列表
     async def list_conversation(
-            self, page: int, page_size: int
+            self, page: int, page_size: int, user_id: UUID | None = None
     ) -> tuple[list[tuple[Conversation, int]], int]:
         repo = ConversationRepository(self.session)
-        return await repo.list_page(page=page, page_size=page_size)
+        return await repo.list_page(page=page, page_size=page_size, user_id=user_id)
 
     # 删除会话
-    async def delete_conversation(self, conversation_id: UUID) -> None:
+    async def delete_conversation(self, conversation_id: UUID, *, user_id: UUID | None = None) -> None:
         repo = ConversationRepository(self.session)
-        deleted = await repo.delete(conversation_id)
+        deleted = await repo.delete(conversation_id, user_id=user_id)
         if not deleted:
             raise NotFoundError("会话不存在")
         await self.session.commit()
@@ -151,8 +153,8 @@ class ChatService:
     """ 流式输出回答，主要方案 """
 
     @traceable(name="ChatService.stream_answer", run_type="chain")
-    async def stream_answer(self,
-                            conversation_id: UUID, question: str) -> AsyncIterator[dict]:
+    async def stream_answer(
+            self, conversation_id: UUID, question: str, *, current_user: User) -> AsyncIterator[dict]:
         """逐事件 yield SSE 载荷。
 
         事件协议（与前端约定）：
@@ -163,7 +165,7 @@ class ChatService:
           替换流式出来的答案，与 PRD"校验失败 → 拒答替换"对齐
         任何阶段出错则改 yield error 并提前结束。
         """
-        await self.get_conversation(conversation_id)
+        await self.get_conversation(conversation_id, user_id=current_user.id)
 
         async with AsyncSessionLocal() as session:
             try:
@@ -171,6 +173,7 @@ class ChatService:
                 state: RAGState = {
                     "conversation_id": conversation_id,
                     "question": question,
+                    "permissions": compute_user_permission_tags(current_user),
                     "trace_id": trace_id
                 }
 
@@ -343,6 +346,7 @@ class ChatService:
             "conversation_id": UUID(int=0),
             "question": question,
             "chat_history": [],
+            "permissions": [WILDCARD_PERMISSION_TAG],
             "trace_id": trace_id
         }
 

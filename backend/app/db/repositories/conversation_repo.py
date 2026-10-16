@@ -28,8 +28,8 @@ class ConversationRepository:
 
 
     # 创建新对话
-    async def create(self, title: str = DEFAULT_CONVERSATION_TITLE) -> Conversation:
-        conversation = Conversation(title=title)
+    async def create(self, title: str = DEFAULT_CONVERSATION_TITLE, user_id: UUID | None = None) -> Conversation:
+        conversation = Conversation(title=title, user_id=user_id)
         self.session.add(conversation)
         await self.session.flush()
         return conversation
@@ -42,8 +42,15 @@ class ConversationRepository:
         return int ((await self.session.execute(stmt)).scalar_one())
 
     # 获取对话
-    async def get(self, conversation_id: UUID) -> Conversation | None:
-        return await self.session.get(Conversation, conversation_id)
+    async def get(self, conversation_id: UUID, *, user_id: UUID | None = None) -> Conversation | None:
+        """ 按ID查对话 """
+        if user_id is None:
+            return await self.session.get(Conversation, conversation_id)
+        stmt = select(Conversation).where(
+            Conversation.id == conversation_id,
+            Conversation.user_id == user_id
+        )
+        return (await self.session.execute(stmt)).scalar_one_or_none()
 
     # 按时间正序返回所有消息(历史消息)
     async def list_message(self, conversation_id: UUID) -> list[Message]:
@@ -70,26 +77,30 @@ class ConversationRepository:
 
 
     async def list_page(
-            self, page: int, page_size: int
+            self, page: int, page_size: int, * ,user_id: UUID | None = None
     ) -> tuple[list[tuple[Conversation, int]], int]:
         """ 按照 update倒序分页返回(会话，消息数)列表 + 总数 """
         page = max(page, 1)
         page_size = max(min(page_size, 100), 1)
         offset = (page - 1) * page_size
 
-        msg_count = func.count(Message.id).label("message_count")
         stmt = (
-            select(Conversation, msg_count)
+            select(Conversation, func.count(Message.id))
             .outerjoin(Message, Message.conversation_id == Conversation.id)
             .group_by(Conversation.id)
             .order_by(Conversation.updated_at.desc(), Conversation.id.desc())
             .limit(page_size)
             .offset(offset)
         )
+        count_stmt = select(func.count(Conversation.id))
+        if user_id is not None:
+            stmt = stmt.where(Conversation.user_id == user_id)
+            count_stmt = count_stmt.where(Conversation.user_id == user_id)
+
         rows = (await self.session.execute(stmt)).all()
         items = [(row[0], int(row[1])) for row in rows]
         total  =int(
-            (await self.session.execute(select(func.count(Conversation.id)))).scalar_one()
+            (await self.session.execute(count_stmt)).scalar_one()
         )
         return items, total
 
@@ -102,8 +113,8 @@ class ConversationRepository:
         await self.session.flush()
 
     # 删除会话
-    async def delete(self, conversation_id: UUID) -> bool:
-        conversation  = await self.get(conversation_id)
+    async def delete(self, conversation_id: UUID, *, user_id: UUID | None = None) -> bool:
+        conversation  = await self.get(conversation_id, user_id=user_id)
         if conversation is None:
             return False
         await self.session.delete(conversation)

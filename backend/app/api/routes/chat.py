@@ -9,6 +9,7 @@ from app.api.schemas.chat import ConversationRead, ConversationCreate, Conversat
     ConversationPage, ConversationListItem
 from app.db.deps import DbSession
 from app.services.chat_service import ChatService
+from app.api.deps import CurrentUser
 
 router = APIRouter(prefix="/conversations", tags=["chat"])
 
@@ -23,9 +24,10 @@ router = APIRouter(prefix="/conversations", tags=["chat"])
 async def create_conversation(
         payload: ConversationCreate,
         session: DbSession,
+        user: CurrentUser
 ) -> ConversationRead:
     service = ChatService(session)
-    conversation = await service.create_conversation(title=payload.title)
+    conversation = await service.create_conversation(title=payload.title, user_id=user.id)
     return ConversationRead.model_validate(conversation)
 
 
@@ -38,9 +40,10 @@ async def create_conversation(
 async def get_conversation(
         conversation_id: UUID,
         session: DbSession,
+        user: CurrentUser
 ) -> ConversationDetail:
     service = ChatService(session)
-    conversation, messages = await service.list_messages(conversation_id)
+    conversation, messages = await service.list_messages(conversation_id, user_id=user.id)
     return ConversationDetail(conversation=ConversationRead.model_validate(conversation),
                               messages=[MessageRead.from_orm(m) for m in messages])
 
@@ -54,9 +57,10 @@ async def stream_chat(
         conversation_id: UUID,
         payload: ChatRequest,
         session: DbSession,
+        user: CurrentUser
 ) -> AsyncIterator[ServerSentEvent]:
     service = ChatService(session)
-    async for sse_event in service.stream_answer(conversation_id, payload.question):
+    async for sse_event in service.stream_answer(conversation_id, payload.question, current_user=user):
         yield ServerSentEvent(
             data=sse_event["data"],
             event=sse_event["event"]
@@ -71,11 +75,12 @@ async def stream_chat(
 )
 async def list_conversations(
         session: DbSession,
+        user: CurrentUser,
         page: int = Query(1, ge=1),
         page_size: int = Query(20, ge=1, le=100)
 ) -> ConversationPage:
     service = ChatService(session)
-    items, total = await service.list_conversation(page=page, page_size=page_size)
+    items, total = await service.list_conversation(page=page, page_size=page_size, user_id=user.id)
     return ConversationPage(
         items=[
             ConversationListItem(
@@ -99,8 +104,9 @@ async def list_conversations(
 )
 async def delete_conversation(
         conversation_id: UUID,
-        session: DbSession
+        session: DbSession,
+        user: CurrentUser
 ) -> Response:
     service = ChatService(session)
-    await service.delete_conversation(conversation_id)
+    await service.delete_conversation(conversation_id, user_id=user.id)
     return Response(status_code=204)

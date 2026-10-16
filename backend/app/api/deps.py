@@ -9,6 +9,7 @@ from app.core.security import decode_access_token
 from app.db.models import  User, UserStatus
 from app.db.repositories.user_repo import UserRepository
 from app.services.permission_service import is_admin
+from app.db.session import get_session
 
 
 def _parse_bearer_token(authorization: str | None) -> str:
