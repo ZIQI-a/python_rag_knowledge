@@ -13,9 +13,9 @@ from sqlalchemy import (
     String,
     Text,
     func,
-    Float, Boolean, Index
+    Float, Boolean, Index, Column, Table
 )
-from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR, UUID as PGUUID
+from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR, UUID as PGUUID, ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.config import settings
@@ -58,6 +58,14 @@ class Document(Base):
         String(32), nullable=False, default=DocumentStatus.UPLOADING
     )
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # 空数组视为公开; 非空数组与用户标签匹配(管理员为 * 通配符)
+    permission_tags: Mapped[list[str]] = mapped_column(
+        ARRAY(String()), nullable=False, default=list, server_default="{}"
+    )
+    # 上传者
+    created_by: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -133,6 +141,9 @@ class Conversation(Base):
 
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
     title: Mapped[str] = mapped_column(String(256), nullable=False, default="新会话")
+    user_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -300,3 +311,64 @@ class EvaluationItem(Base):
     )
 
     run: Mapped[EvaluationRun] = relationship(back_populates="items")
+
+""" 用户和权限相关表 """
+
+class UserStatus(str, Enum):
+    """ 用户启用状态 """
+    ACTIVE = "active"
+    DISABLED = "disabled"
+
+# 用户角色多对多关系表
+# 不使用ORM类创建表，是本身没有业务字段,纯关系
+user_roles_table = Table(
+    "user_roles",
+    Base.metadata,
+    Column(
+        "user_id",
+        PGUUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True
+    ),
+    Column(
+        "role_id",
+        PGUUID(as_uuid=True),
+        ForeignKey("roles.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+)
+
+class User(Base):
+    """ 用户表 """
+    __tablename__ = "users"
+
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    username: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    display_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    status: Mapped[UserStatus] = mapped_column(String(16), nullable=False, default=UserStatus.ACTIVE)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    roles: Mapped[list["Role"]] = relationship(
+        secondary=user_roles_table,
+        back_populates="users",
+        lazy="selectin"
+    )
+
+class Role(Base):
+    """ 权限表 """
+
+    __tablename__ = "roles"
+
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    name: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    description: Mapped[str] = mapped_column(String(256), nullable=False, default="")
+    permission_tags: Mapped[list[str]] = mapped_column(
+        ARRAY(String()), nullable=False, default=list, server_default="{}"
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    users: Mapped[list[User]] = relationship(
+        secondary=user_roles_table,
+        back_populates="roles",
+    )
+

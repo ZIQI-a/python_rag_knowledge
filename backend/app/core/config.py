@@ -74,6 +74,18 @@ class Settings(BaseSettings):
     langsmith_endpoint: str = "https://api.smith.langchain.com"
     langsmith_run_url_prefix: str = ""  # 包含Workspace信息是私有的，配置后才下发链接给前端
 
+    # ===== 认证 =====
+    # JWT 签名密钥
+    jwt_secret: str = ""
+    jwt_algorithm: str = "HS256"
+    # token 默认 24 小时过期
+    jwt_expire_minutes: int = 1440
+
+    # 首次启动种子管理员账号；库内已有用户时跳过
+    default_admin_username: str = "admin"
+    default_admin_password: str = "admin"
+    default_admin_display_name: str = "管理员"
+
     @property
     def observability_enabled(self) -> bool:
         """ LangSmith实际生效条件:打开开关且Key配置"""
