@@ -1,4 +1,7 @@
 """ 应用启动入口文件 """
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
@@ -7,7 +10,21 @@ from app.api.routes import health, documents, chat, evaluations
 from app.core.config import settings
 from app.core.logging import configure_logging, get_logger
 from app.core.observbility import configure_observability
+from app.db.seed import seed_default_admin
 
+logger = get_logger(__name__)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """ 应用生命周期钩子启动时做初始化 """
+    # 这里在启动时，如果没有数据库内容，创建角色和用户
+    if not settings.jwt_secret:
+        logger.warning("JWT_SECRET未配置，请在生产环境中配置")
+    try:
+        await seed_default_admin()
+    except Exception:
+        logger.exception("初始化失败")
+    yield
 
 def create_app() -> FastAPI:
     configure_logging()
