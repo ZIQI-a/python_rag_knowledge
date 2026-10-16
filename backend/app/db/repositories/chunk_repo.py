@@ -6,7 +6,7 @@ from uuid import UUID
 from sqlalchemy import delete, select, func, or_
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.sql.elements import ColumnElement
+from sqlalchemy.sql.elements import ColumnElement, and_
 
 from app.db.models import DocumentChunk, Document
 
@@ -113,13 +113,21 @@ class DocumentChunkRepository:
         )
 
     # 向量搜索(基于余弦距离向量相似度)
-    async def vector_search(self, query_embedding: list[float], top_k: int
-                            ) -> list[tuple[DocumentChunk, float]]:
+    async def vector_search(
+            self, query_embedding: list[float], top_k: int,
+            *, permission_tags: list[str] | None = None
+    ) -> list[tuple[DocumentChunk, float]]:
         distance = DocumentChunk.embedding.cosine_distance(query_embedding)
+        conditions: list[ColumnElement[bool]] = [
+            Document.status == "ready"
+        ]
+        perm_where = _permission_where(permission_tags)
+        if perm_where is not None:
+            conditions.append(perm_where)
         stmt = (
             select(DocumentChunk, distance.label("distance"))
             .join(Document, Document.id == DocumentChunk.document_id)
-            .where(Document.status == 'ready')
+            .where(and_(*conditions))
             .order_by(distance.asc())
             .limit(top_k)
             .options(selectinload(DocumentChunk.document))
@@ -128,17 +136,25 @@ class DocumentChunkRepository:
         return [(chunk, float(dist)) for chunk, dist in rows]
 
     # 基于关键词搜索(全文中文检索)
-    async def keyword_search(self, query: str, top_k: int) -> list[tuple[DocumentChunk, float]]:
+    async def keyword_search(
+            self, query: str, top_k: int,
+            *, permission_tags: list[str] | None = None
+    ) -> list[tuple[DocumentChunk, float]]:
         # 使用Chinese_zh文本搜索配置
         tsquery = func.plainto_tsquery("chinese_zh", query)
         rank_expr = func.ts_rank(DocumentChunk.content_tsv, tsquery)
+        conditions: list[ColumnElement[bool]] = [
+            Document.status == "ready",
+            DocumentChunk.content_tsv.op("@@")(tsquery),
+        ]
+        perm_where = _permission_where(permission_tags)
+        if perm_where is not None:
+            conditions.append(perm_where)
         stmt = (
             select(DocumentChunk, rank_expr.label("rank"))
             .join(Document, Document.id == DocumentChunk.document_id)
             .where(
-                # 必须是已就绪状态
-                Document.status == "ready",
-                DocumentChunk.content_tsv.op("@@")(tsquery),
+                and_(*conditions)
             )
             .order_by(rank_expr.desc())
             .limit(top_k)

@@ -14,20 +14,23 @@ from app.workflows.rag_state import RAGState
 async def retrieve(state: RAGState) -> RAGState:
     retriever = HybridRetriever()
     recall_top_k = settings.retrieval_recall_top_k
+    permissions = state.get("permissions")
 
     # 多角度查询路径，需要多路召回 + 去重
     if state.get("route") == "multi_query" and state.get("multi_queries"):
         bundles: list[list[RetrievedChunk]] = []
         for sub_query in state["multi_queries"] or []:
             bundles.append(await retriever.search(
-                sub_query, recall_top_k=recall_top_k, final_top_k=recall_top_k
+                sub_query, recall_top_k=recall_top_k, final_top_k=recall_top_k,
+                permission_tags=permissions
             ))
         chunks = _merge_chunks(bundles, top_k=recall_top_k)
     else:
         chunks = await retriever.search(
             state["query"],
             recall_top_k=recall_top_k,
-            final_top_k=recall_top_k
+            final_top_k=recall_top_k,
+            permission_tags=permissions
         )
     return {"retrieved_chunks": chunks}
 

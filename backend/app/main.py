@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
 from app.api.error_handlers import register_error_handlers
-from app.api.routes import health, documents, chat, evaluations
+from app.api.routes import health, documents, chat, evaluations, auth, roles, users
 from app.core.config import settings
 from app.core.logging import configure_logging, get_logger
 from app.core.observbility import configure_observability
@@ -46,6 +46,9 @@ def create_app() -> FastAPI:
     app.include_router(documents.router, prefix="/api")
     app.include_router(chat.router, prefix="/api")
     app.include_router(evaluations.router, prefix="/api")
+    app.include_router(auth.router, prefix="/api")
+    app.include_router(roles.router, prefix="/api")
+    app.include_router(users.router, prefix="/api")
 
     logger.info("APP初始化: %s", settings.app_name)
     return app

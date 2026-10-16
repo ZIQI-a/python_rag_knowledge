@@ -32,10 +32,10 @@ class VectorRetriever:
 
     # 检索文档chunk
     @traceable(name="VectorRetriever.search", run_type="retriever")
-    async def search(self, query: str, top_k: int) -> list[RetrievedChunk]:
+    async def search(self, query: str, top_k: int, permission_tags: list[str] | None = None) -> list[RetrievedChunk]:
         embedding = await get_embeddings().aembed_query(query) # 获取查询的embedding
         # 查询数据库中相似度最高的chunk
-        rows = await self.chunk_repo.vector_search(embedding, top_k)
+        rows = await self.chunk_repo.vector_search(embedding, top_k, permission_tags=permission_tags)
         return [
             RetrievedChunk(
                 # score 是混合检索后的分数越大越相似

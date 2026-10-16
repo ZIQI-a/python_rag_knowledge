@@ -62,7 +62,7 @@ class DocumentRepository:
         self, page: int, page_size: int, *,
         status: DocumentStatus | None = None,
         permission_tags: list[str] | None = None,
-    ):
+    ) -> tuple[list[Document], int]:
         offset = (page - 1) * page_size
         item_stmt = (
             select(Document)

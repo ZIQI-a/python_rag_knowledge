@@ -20,12 +20,13 @@ class HybridRetriever:
             retriever_cls: type[VectorRetriever] | type[KeywordRetriever],  # 类型
             query: str,
             top_k: int,
-            label: str  # 标记来源哪一处挂了
+            label: str,  # 标记来源哪一处挂了
+            permission_tags: list[str] | None = None
     ) -> list[RetrievedChunk]:
         try:
             async with AsyncSessionLocal() as session:
                 retriever = retriever_cls(session)
-                return await retriever.search(query, top_k)
+                return await retriever.search(query, top_k, permission_tags=permission_tags)
         except Exception:
             logger.exception("hybrid retrieve %s 路异常，降级为空结果", label)
             return []
@@ -38,11 +39,12 @@ class HybridRetriever:
             *,
             recall_top_k: int,
             final_top_k: int,
+            permission_tags: list[str] | None = None
     ) -> list[RetrievedChunk]:
         """ 两路并发返回，任意一路异常都退化为另一路结果,避免阻塞整个回答 """
         vector_hits, keyword_hits = await asyncio.gather(
-            self._safe_search(VectorRetriever, query, recall_top_k, "vector"),
-            self._safe_search(KeywordRetriever, query, recall_top_k, "keyword"),
+            self._safe_search(VectorRetriever, query, recall_top_k, "vector", permission_tags),
+            self._safe_search(KeywordRetriever, query, recall_top_k, "keyword", permission_tags),
         )
         return rrf_fuse(
             vector_hits=vector_hits,
