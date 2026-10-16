@@ -9,6 +9,11 @@ from app.services import document_service
 
 DocumentStatusValue = Literal["uploading", "parsing", "indexing", "ready", "failed"]
 
+class DocumentPermissionTagsUpdate(BaseModel):
+    """admin 改文档可见性标签的请求体。"""
+    permission_tags: list[str] = Field(default_factory=list)
+
+
 """ 文档列表 """
 # 文档列表项
 class DocumentRead(BaseModel):
@@ -21,6 +26,9 @@ class DocumentRead(BaseModel):
     size: int
     status: DocumentStatusValue
     error_message: str | None
+    # 空数组视为"公开"；非空数组与用户有效权限标签做重叠匹配
+    permission_tags: list[str] = Field(default_factory=list)
+    created_by: UUID | None = None
     created_at: datetime
     updated_at: datetime
 
