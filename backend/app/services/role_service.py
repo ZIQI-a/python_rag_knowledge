@@ -14,7 +14,7 @@ class RoleService:
         self.session = session
         self.repo = RoleRepository(session)
 
-    async def list_role(self) -> list[Role]:
+    async def list_roles(self) -> list[Role]:
         """ 展示所有角色列表 """
         return await self.repo.list_all()
 
