@@ -6,9 +6,9 @@ from openpyxl.utils.protection import hash_password
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import NotFoundError, ValidationError, ConflictError
+from app.db.models import User, UserStatus
 from app.db.repositories.role_repo import RoleRepository
 from app.db.repositories.user_repo import UserRepository
-from app.db.models import Role, User, UserStatus
 
 
 class UserService:
@@ -84,6 +84,7 @@ class UserService:
         return user
 
     async def set_roles(self, user_id: UUID, role_ids: Sequence[UUID]) -> User:
+        """ 设置用户的角色 """
         user = await self.get_user(user_id)
         roles = await self.role_repo.get_many(list(role_ids))
         await self.user_repo.set_roles(user, roles)
@@ -92,11 +93,7 @@ class UserService:
         return user
 
     async def delete_user(self, user_id: UUID) -> None:
+        """ 删除用户 """
         user = await self.get_user(user_id)
         await self.user_repo.delete(user)
         await self.session.commit()
-
-
-
-
-
