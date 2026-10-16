@@ -1,15 +1,16 @@
 """ 评测相关API接口定义 """
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Query, Response
+from fastapi import APIRouter, BackgroundTasks, Query, Response, Depends
 
+from app.api.deps import get_current_admin
 from app.api.schemas.evaluations import DatasetListResponse, DatasetInfo, EvaluationRunRead, EvaluationRunCreate, \
     EvaluationRunPage, EvaluationRunListItem, EvaluationItemPage, BadCaseCategoryValue, EvaluationItemRead, \
     EvaluationItemUpdate
 from app.db.deps import DbSession
 from app.services.evaluation_service import EvaluationService, execute_evaluation_run
 
-router = APIRouter(prefix="/evaluations", tags=["evaluations"])
+router = APIRouter(prefix="/evaluations", tags=["evaluations"], dependencies=[Depends(get_current_admin)])
 
 
 @router.get(
