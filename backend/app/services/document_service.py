@@ -1,5 +1,6 @@
 """ 文档相关服务，调用定义好的下层DB操作 """
 import hashlib
+from collections.abc import Sequence
 from pathlib import PurePath
 from uuid import UUID
 
@@ -47,6 +48,19 @@ _DELETABLE_STATUSES = frozenset(
 )
 
 
+# 规范化权限标签：去空白、去空串、去重、保持稳定顺序
+def _normalize_tags(tags: Sequence[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for tag in tags:
+        t = tag.strip()
+        if not t or t in seen:
+            continue
+        seen.add(t)
+        result.append(t)
+    return result
+
+
 # 解析上传的文档是否符合要求，根据类型和扩展名来判断
 def _resolve_mime_and_suffix(file: UploadFile) -> tuple[str, str]:
     suffix = PurePath(file.filename or "").suffix.lower()
@@ -74,7 +88,14 @@ class DocumentService:
         self.file_service = file_serice or get_file_service()
 
     # 上传文档
-    async def upload(self, file: UploadFile, background_tasks: BackgroundTasks) -> Document:
+    async def upload(
+        self,
+        file: UploadFile,
+        background_tasks: BackgroundTasks,
+        *,
+        created_by: UUID | None = None,
+        permission_tags: Sequence[str] | None = None,
+    ) -> Document:
         """一、校验文件"""
         mime_type, suffix = _resolve_mime_and_suffix(file)
 
@@ -107,7 +128,9 @@ class DocumentService:
             cos_bucket=self.file_service.bucket,
             cos_object_key=object_key,
             cos_region=self.file_service.region,
-            status=DocumentStatus.UPLOADING
+            status=DocumentStatus.UPLOADING,
+            permission_tags=_normalize_tags(list(permission_tags or [])),
+            created_by=created_by
         )
 
         await self.repo.add(document)
@@ -118,17 +141,25 @@ class DocumentService:
         return document
 
     # 获取文档
-    async def get(self, document_id: UUID) -> Document:
+    async def get(
+        self, document_id: UUID, *,
+        permission_tags: list[str] | None = None,
+    ) -> Document:
         """读取文档，并将不存在的结果转换为业务异常。"""
-        doc = await self.repo.get_by_id(document_id)
+        doc = await self.repo.get_by_id(document_id, permission_tags=permission_tags)
         if doc is None:
             raise NotFoundError(f"文档不存在: {document_id}")
         return doc
 
     # 获取文档列表
-    async def list_documents(self, page: int, page_size: int, *, status: DocumentStatus | None = None) -> tuple[
-        list[Document], int]:
-        return await self.repo.list_paginated(page, page_size, status=status)
+    async def list_documents(
+        self, page: int, page_size: int, *,
+        status: DocumentStatus | None = None,
+        permission_tags: list[str] | None = None,
+    ) -> tuple[list[Document], int]:
+        return await self.repo.list_paginated(
+            page, page_size, status=status, permission_tags=permission_tags,
+        )
 
     # 删除文档
     async def delete(self, document_id: UUID) -> None:
@@ -167,16 +198,38 @@ class DocumentService:
             document_id: UUID,
             page: int,
             page_size: int,
+            *,
+            permission_tags: list[str] | None = None,
     ) -> tuple[list[DocumentChunk], int, ChunkStats | None]:
-        # 先检查对应的文档，确保存在
-        await self.get(document_id)
+        # 先确保 document 存在 + 当前用户可见
+        await self.get(document_id, permission_tags=permission_tags)
         items, total = await self.chunk_repo.list_paginated_by_document(document_id, page, page_size)
         status = await self.chunk_repo.get_status(document_id)
         return items, total, status
 
     # 获取指定文档的Chunk内容
-    async def get_chunk(self, document_id: UUID, chunk_id: UUID) -> DocumentChunk:
+    async def get_chunk(
+        self,
+        document_id: UUID,
+        chunk_id: UUID,
+        *,
+        permission_tags: list[str] | None = None,
+    ) -> DocumentChunk:
+        # 双重校验：先确保用户能看到 document，再校验 chunk 归属
+        await self.get(document_id, permission_tags=permission_tags)
         chunk = await self.chunk_repo.get_for_document(document_id, chunk_id)
         if chunk is None:
             raise NotFoundError(f"文档Chunk不存在: {document_id} {chunk_id}")
         return chunk
+
+    # admin 修改文档可见性标签
+    async def update_permission_tags(
+        self, document_id: UUID, tags: Sequence[str]
+    ) -> Document:
+        doc = await self.repo.get_by_id(document_id)
+        if doc is None:
+            raise NotFoundError("文档不存在")
+        doc.permission_tags = _normalize_tags(tags)
+        await self.session.commit()
+        await self.session.refresh(doc)
+        return doc

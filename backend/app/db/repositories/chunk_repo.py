@@ -3,11 +3,32 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from uuid import UUID
 
-from sqlalchemy import delete, select, func
+from sqlalchemy import delete, select, func, or_
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.db.models import DocumentChunk, Document
+
+# 通配权限标签：admin 角色持有，含义"无视权限过滤"
+WILDCARD_PERMISSION_TAG = "*"
+
+# 构造文档可见性的公共WHERE条件，供 document_repo 与检索查询复用
+def _permission_where(permission_tags: list[str] | None) -> ColumnElement[bool] | None:
+    """构造文档可见性 WHERE 条件。
+
+    - None：调用方（评测 / 启动期种子）显式不限制
+    - 含 "*"：admin 通配，不加条件
+    - 其他：'空权限标签视为公开' OR '数组重叠'
+    """
+    if permission_tags is None:
+        return None
+    if WILDCARD_PERMISSION_TAG in permission_tags:
+        return None
+    return or_(
+        func.cardinality(Document.permission_tags) == 0,
+        Document.permission_tags.op("&&")(permission_tags),
+    )
 
 
 # 单个文档下的chunk长度统计
