@@ -9,12 +9,12 @@ const menuItems = [
     {
         key: '/',
         icon: <DashboardOutlined />,
-        label: <Link to={'/'}>首页</Link>
+        label: <Link to={'/'}>问津亭</Link>
     },
     {
         key: '/documents',
         icon: <FileTextOutlined />,
-        label: <Link to={'/documents'}>文档管理</Link>,
+        label: <Link to={'/documents'}>藏书阁</Link>,
     },
     {
         key: '/chat',
@@ -24,7 +24,7 @@ const menuItems = [
     {
         key: '/evaluation',
         icon: <ExperimentOutlined />,
-        label: <Link to={'/evaluation'}>评测分析</Link>,
+        label: <Link to={'/evaluation'}>试津</Link>,
     },
 ]
 

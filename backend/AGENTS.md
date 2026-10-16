@@ -4,13 +4,13 @@
 
 ## 技术栈
 
-Python 3.14（uv 管理）· FastAPI + Uvicorn · SQLAlchemy 2.0 (asyncio) + asyncpg · Alembic · pydantic-settings · cos-python-sdk-v5
+Python 3.14（uv 管理）· FastAPI + Uvicorn · SQLAlchemy 2.0 (asyncio) + asyncpg · Alembic · pydantic-settings · COS SDK · Docling · LangChain / LangGraph · pgvector / zhparser · LangSmith · RAGAS
 
 ## 常用命令
 
 ```bash
 uv sync                              # 安装依赖（新增依赖用 uv add <pkg>）
-uv run uvicorn app.main:app --reload # 开发启动
+uv run uvicorn app.main:app --reload --port 8000 # 开发启动，与前端代理保持一致
 uv run alembic upgrade head          # 应用迁移
 uv run alembic revision --autogenerate -m "<说明>"  # 生成迁移
 ```
@@ -34,3 +34,10 @@ uv run alembic revision --autogenerate -m "<说明>"  # 生成迁移
 | 新增配置项 | `app/core/config.py` + 根目录 `.env.example` |
 | 文件存储 | `app/storage/cos_client.py` |
 | 应用入口装配 | `app/main.py` |
+| 文档入库流水线 | `app/ingestion/` + `app/services/document_service.py` |
+| 查询策略与混合检索 | `app/llm/query_rewriter.py` + `app/retrieval/` |
+| Agent 工作流与答案校验 | `app/workflows/` + `app/llm/agent_planner.py`、`reranker.py`、`answer_verifier.py` |
+| 会话问答与评测复用入口 | `app/services/chat_service.py`（流式问答与内部 `answer_for_evaluation` 方法） |
+| 可观测性配置 | `app/core/observbility.py`（沿用当前文件名） |
+| 评测与 Bad Case 归因 | `app/evaluation/` + `app/services/evaluation_service.py` + `app/api/routes/evaluations.py` |
+| 评测数据集 | `app/evaluation/datasets/*.jsonl`，接口参数使用不带扩展名的名称 |

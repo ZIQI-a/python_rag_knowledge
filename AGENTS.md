@@ -11,7 +11,7 @@ AI 代理在本仓库工作前必读。本文件是**总索引**：全局约束�
 
 ## 项目定位
 
-AI RAG 知识库「问津」：`backend/` 为 FastAPI 异步后端，`frontend/` 为 React + Ant Design 前端。当前已搭建健康检查、数据库与 COS 连通检查；采集 → 切分 → 向量化 → 检索 → 问答链路尚在建设中。
+AI RAG 知识库「问津」：`backend/` 为 FastAPI 异步后端，`frontend/` 为 React + Ant Design 前端。截至 2026-10-16，已实现文档管理与解析/切分/向量化入库、知识库流式对话、查询路由与混合检索、LangGraph Agent 循环、精排与答案校验、LangSmith 追踪，以及评测分析和 Bad Case 人工归因。评测样本已提供，原始知识文档需自行准备；代码实现进度不等同于外部服务联调结果。
 
 ## 分层约束索引
 
@@ -33,6 +33,7 @@ AI RAG 知识库「问津」：`backend/` 为 FastAPI 异步后端，`frontend/`
 backend/            # FastAPI 后端（约束见 backend/AGENTS.md）
 frontend/           # React 前端（约束见 frontend/AGENTS.md）
 docs/               # 项目文档索引（docs/INDEX.md）
-docker-compose.yml  # 本地 PostgreSQL 16 + pgvector
+docker-compose.yml  # 本地 PostgreSQL 16 + pgvector + zhparser
+postgres.Dockerfile # 自定义数据库镜像，编译中文分词扩展
 .env.example        # 环境变量模板（真实值写入 .env，不入库）
 ```

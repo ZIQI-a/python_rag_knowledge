@@ -13,7 +13,7 @@ npm install        # 安装依赖（package-lock.json 必须提交）
 npm run dev        # 开发启动
 npm run build      # tsc + vite 构建
 npm run lint       # ESLint 检查
-npm run gen-api    # 从后端 OpenAPI 生成 API 客户端；先核对 openapi-ts.config.ts 的端口
+npm run gen-api    # 从后端 OpenAPI 生成 API 客户端；当前后端、生成地址及开发代理均使用 8000
 ```
 
 ## 前端约定
@@ -31,6 +31,13 @@ npm run gen-api    # 从后端 OpenAPI 生成 API 客户端；先核对 openapi-
 | --- | --- |
 | 新增页面 | `src/pages/` + `src/routes/index.tsx` + BasicLayout 菜单 |
 | 修改主布局/菜单 | `src/layouts/BasicLayout.tsx` |
-| 应用入口（挂载/语言包） | `src/main.tsx` |
+| 应用入口（挂载/语言包/消息上下文） | `src/main.tsx` 中的 `ConfigProvider`、antd `App`、`QueryClientProvider` |
 | 构建配置 | `vite.config.ts` |
 | API 客户端生成 | `openapi-ts.config.ts` + `src/client/` |
+| 文档管理与详情 | `src/pages/DocumentsPage.tsx`、`DocumentDetailPage.tsx` |
+| 知识库问答与会话侧栏 | `src/pages/ChatPage.tsx` + `src/components/ConversationSidebar.tsx` |
+| SSE 问答事件 | `src/api/chatStream.ts` |
+| 查询/Agent/追踪展示 | `src/components/QueryRoutePanel.tsx`、`AgentStepsPanel.tsx`、`TraceIdPanel.tsx` |
+| 评测列表与详情 | `src/pages/EvaluationListPage.tsx`、`EvaluationDetailPage.tsx` |
+| 评测数据请求与查询键 | `src/api/evaluation.ts`、`src/api/queryKeys.ts` |
+| 评测指标与归因 | `src/components/MetricsCard.tsx`、`BadCaseCategorySelect.tsx` + `src/utils/badCaseCategory.ts` |
