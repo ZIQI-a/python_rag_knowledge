@@ -1,6 +1,7 @@
 import {
+    App as AntdApp,
     Button, Form,
-    message, Modal,
+    Modal,
     Popconfirm, Select,
     Space, Table,
     type TableProps,
@@ -12,12 +13,11 @@ import {
     type UploadProps
 } from "antd";
 import {deleteDocument, type DocumentRead, listDocuments, retryDocument, uploadDocument} from "@/client";
-import {useMemo, useState} from "react";
+import {useState} from "react";
 import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
 import {getStatusColor, getStatusLabel, isTerminalStatus} from "@/utils/documentStatus.ts";
 import {Link} from "react-router-dom";
 import {DeleteOutlined, InboxOutlined, ReadOutlined, ReloadOutlined} from "@ant-design/icons";
-import {useAuthStore} from "@/stores/authStore.ts";
 
 
 const { Title, Paragraph} = Typography
@@ -60,6 +60,7 @@ function UploadModal({ open, onClose, onUpload }: {
     onClose: () => void
     onUpload: (file: File, tags: string[]) => void
 }) {
+    const {message} = AntdApp.useApp()
     const [form] = Form.useForm<UploadFormValues>()
 
     const uploadProps: UploadProps = {
@@ -115,11 +116,13 @@ function UploadModal({ open, onClose, onUpload }: {
 
 // 文档轮训展示
 export function DocumentsPage() {
+    const {message} = AntdApp.useApp()
     const [page, setPage] = useState(1)
     const [pageSize, setPageSize] = useState(20)
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+    // 上传弹窗开关
+    const [uploadOpen, setUploadOpen] = useState(false)
     const queryClient = useQueryClient()
-    const isAdmin = useAuthStore((s) => Boolean(s.user?.isAdmin))
 
     // 根据条件获取文档列表（React Query）
     const listQuery = useQuery({
@@ -188,17 +191,6 @@ export function DocumentsPage() {
         }
     })
 
-    const uploadProps: UploadProps = useMemo(
-        () => ({
-            multiple: true,
-            accept: ACCEPTED,
-            showUploadList: false,
-            customRequest: ({file}) => {
-                uploadMutation.mutate(file as File)
-            }
-        }),
-        [uploadMutation],
-    )
     /**
      * 表格的列，属性
      */
@@ -294,18 +286,6 @@ export function DocumentsPage() {
             }
         }
     ]
-    if (isAdmin) {
-        columns.push({
-            title: '操作',
-            key: 'actions',
-            width: 180,
-            render: (_, record) => (
-                <Space>
-                    {/*删除重置按钮*/}
-                </Space>
-            )
-        })
-    }
 
     return (
         <div>
@@ -314,11 +294,10 @@ export function DocumentsPage() {
                 支持PDF、 Word、 HTML、Markdown。上传后会进行文档解析、拆分、向量化，状态自动刷新
             </Paragraph>
             <Space style={{marginBottom: 16}} wrap>
-                <Upload {...uploadProps}>
-                    <Button type="primary" icon={<InboxOutlined />} loading={uploadMutation.isPending}>
-                        上传文档
-                    </Button>
-                </Upload>
+                <Button type="primary" icon={<InboxOutlined />}
+                        onClick={() => setUploadOpen(true)}>
+                    上传文档
+                </Button>
                 <Button icon={<ReloadOutlined />}
                         onClick={() => listQuery.refetch()}
                         loading={listQuery.isFetching}>
@@ -350,6 +329,12 @@ export function DocumentsPage() {
                     },
                 }}
                 />
+            {/*上传文档弹窗*/}
+            <UploadModal
+                open={uploadOpen}
+                onClose={() => setUploadOpen(false)}
+                onUpload={(file, tags) => uploadMutation.mutate({ file, tags })}
+            />
         </div>
     )
 
