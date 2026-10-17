@@ -7,7 +7,7 @@ import jwt
 from app.core.config import settings
 from app.core.exceptions import UnauthorizedError
 
-def has_password(plain: str) -> str:
+def hash_password(plain: str) -> str:
     """ bcrypt默认cost等于12，单次哈希200毫秒 """
     return bcrypt.hashpw(plain.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 

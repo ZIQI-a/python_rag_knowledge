@@ -2,13 +2,13 @@
 from collections.abc import Sequence
 from uuid import UUID
 
-from openpyxl.utils.protection import hash_password
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import NotFoundError, ValidationError, ConflictError
 from app.db.models import User, UserStatus
 from app.db.repositories.role_repo import RoleRepository
 from app.db.repositories.user_repo import UserRepository
+from app.core.security import hash_password
 
 
 class UserService:
