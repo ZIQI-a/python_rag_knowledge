@@ -12,7 +12,6 @@ import {RolesPage} from "@/pages/RolesPage.tsx";
 import {RequireAuth} from "@/components/RequireAuth.tsx";
 import {RequireAdmin} from "@/components/RequireAdmin.tsx";
 
-
 export const router = createBrowserRouter([
     // 登录单独路由
     { path: '/login', element: <LoginPage /> },
