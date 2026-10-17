@@ -12,12 +12,13 @@ import {
     type UploadFile,
     type UploadProps
 } from "antd";
-import {deleteDocument, type DocumentRead, listDocuments, retryDocument, uploadDocument} from "@/client";
+import {deleteDocument, type DocumentRead, listDocuments, retryDocument, updateDocumentPermissionTags, uploadDocument} from "@/client";
 import {useState} from "react";
 import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
 import {getStatusColor, getStatusLabel, isTerminalStatus} from "@/utils/documentStatus.ts";
 import {Link} from "react-router-dom";
-import {DeleteOutlined, InboxOutlined, ReadOutlined, ReloadOutlined} from "@ant-design/icons";
+import {DeleteOutlined, InboxOutlined, ReadOutlined, ReloadOutlined, TagOutlined} from "@ant-design/icons";
+import {useAuthStore} from "@/stores/authStore.ts";
 
 
 const { Title, Paragraph} = Typography
@@ -105,7 +106,7 @@ function UploadModal({ open, onClose, onUpload }: {
                         mode="tags"
                         tokenSeparators={[',']}
                         open={false}
-                        placeholder="权限标签"
+                        placeholder="例如：合同、财务；* 表示全部文档"
                         options={[{label: '*（全部文档）', value: '*'}]}
                     />
                 </Form.Item>
@@ -122,7 +123,12 @@ export function DocumentsPage() {
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
     // 上传弹窗开关
     const [uploadOpen, setUploadOpen] = useState(false)
+    // 标签编辑弹窗：对象兼做开关和数据源
+    const [tagEditing, setTagEditing] = useState<DocumentRead | null>(null)
+    const [tagForm] = Form.useForm<{ permission_tags?: string[] }>()
     const queryClient = useQueryClient()
+    // 标签编辑只有 admin 能用
+    const isAdmin = useAuthStore((s) => Boolean(s.user?.isAdmin))
 
     // 根据条件获取文档列表（React Query）
     const listQuery = useQuery({
@@ -141,7 +147,7 @@ export function DocumentsPage() {
         refetchInterval: (query) => {
             const data = query.state.data
             if(!data) return false
-            const hasInflight = data.items. some((d) => !isTerminalStatus(d.status))
+            const hasInflight = data.items.some((d) => !isTerminalStatus(d.status))
             return hasInflight ? 3000 : false
         }
     })
@@ -190,6 +196,43 @@ export function DocumentsPage() {
             invalidateList()
         }
     })
+
+    /**
+     * 修改权限标签（仅 admin）
+     */
+    const updateTagsMutation = useMutation({
+        mutationFn: async (params: { documentId: string; tags: string[] }) => {
+            await updateDocumentPermissionTags({
+                path: { document_id: params.documentId },
+                body: { permission_tags: params.tags },
+            })
+        },
+        onSuccess: () => {
+            message.success('权限标签已更新')
+            invalidateList()
+        },
+    })
+
+    /** 打开标签编辑弹窗并回填 */
+    function openTagEdit(record: DocumentRead) {
+        setTagEditing(record)
+        tagForm.setFieldsValue({ permission_tags: record.permission_tags ?? [] })
+    }
+
+    /** 提交标签修改 */
+    async function submitTags() {
+        if (!tagEditing) return
+        try {
+            const values = await tagForm.validateFields()
+            await updateTagsMutation.mutateAsync({
+                documentId: tagEditing.id,
+                tags: values.permission_tags ?? [],
+            })
+            setTagEditing(null)
+        } catch {
+            // 校验失败 / 请求失败都保持弹窗打开
+        }
+    }
 
     /**
      * 表格的列，属性
@@ -248,6 +291,12 @@ export function DocumentsPage() {
                 const canRetry = record.status === 'failed'
                 return (
                     <Space>
+                        {isAdmin ? (
+                            <Button type="link" size="small" icon={<TagOutlined />}
+                                    onClick={() => openTagEdit(record)}>
+                                标签
+                            </Button>
+                        ) : null}
                         {canRetry ? (
                                 <Button
                                     type='link'
@@ -335,6 +384,33 @@ export function DocumentsPage() {
                 onClose={() => setUploadOpen(false)}
                 onUpload={(file, tags) => uploadMutation.mutate({ file, tags })}
             />
+            {/*编辑权限标签弹窗（仅 admin 入口可达）*/}
+            <Modal
+                title={`权限标签 · ${tagEditing?.name ?? ''}`}
+                open={tagEditing !== null}
+                forceRender
+                confirmLoading={updateTagsMutation.isPending}
+                okText="保存"
+                cancelText="取消"
+                onOk={submitTags}
+                onCancel={() => setTagEditing(null)}
+            >
+                <Form form={tagForm} layout="vertical">
+                    <Form.Item
+                        name="permission_tags"
+                        label="权限标签"
+                        extra="留空视为公开（所有登录用户可见）；* 表示全部文档"
+                    >
+                        <Select
+                            mode="tags"
+                            tokenSeparators={[',']}
+                            open={false}
+                            placeholder="输入标签后回车"
+                            options={[{label: '*（全部文档）', value: '*'}]}
+                        />
+                    </Form.Item>
+                </Form>
+            </Modal>
         </div>
     )
 
