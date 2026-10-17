@@ -29,6 +29,7 @@ import {ArrowLeftOutlined, DeleteOutlined, DownloadOutlined, EyeOutlined, Reload
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {gfmComponents} from "@/components/markdownComponents.tsx";
+import {useAuthStore} from "@/stores/authStore.ts";
 
 
 const {Title, Text, Paragraph} = Typography
@@ -75,7 +76,11 @@ function MarkdownPreview({url}: {url: string}) {
         let cancelled = false;
         setContent(null)
         setError(null)
-        fetch(url)
+        fetch(url, {
+            headers: useAuthStore.getState().token
+                ? { Authorization: `Bearer ${useAuthStore.getState().token!}` }
+                : undefined
+        })
             .then(async (r) => {
                 if(!r.ok) throw new Error(`${r.status} ${r.statusText}`)
                 return r.text()

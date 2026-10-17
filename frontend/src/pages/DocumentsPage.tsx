@@ -1,6 +1,6 @@
 import {
-    Button,
-    message,
+    Button, Form,
+    message, Modal,
     Popconfirm, Select,
     Space, Table,
     type TableProps,
@@ -16,6 +16,7 @@ import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
 import {getStatusColor, getStatusLabel, isTerminalStatus} from "@/utils/documentStatus.ts";
 import {Link} from "react-router-dom";
 import {DeleteOutlined, InboxOutlined, ReadOutlined, ReloadOutlined} from "@ant-design/icons";
+import {useAuthStore} from "@/stores/authStore.ts";
 
 
 const { Title, Paragraph} = Typography
@@ -45,12 +46,63 @@ function formatSize(size: number): string {
     if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`
     return `${(size / 1024 / 1024).toFixed(2)} MB`
 }
+
+/** 上传文档弹窗 */
+function UploadModal({ open, onClose, onUpload }) {
+    const [form] = Form.useForm<UploadFormValues>()
+
+    const uploadProps: UploadProps = {
+        multiple: false,
+        accept: ACCEPTED,
+        maxCount: 1,
+        beforeUpload: () => false, // 用 form 控制提交
+    }
+
+    const handleOk = async () => {
+        try {
+            const values = await form.validateFields()
+            const file = values.files?.[0]?.originFileObj as File | undefined
+            if (!file) {
+                message.error('请先选择文件')
+                return
+            }
+            onUpload(file, values.permission_tags ?? [])
+            form.resetFields()
+            onClose()
+        } catch {}
+    }
+
+    return (
+        <Modal title="上传文档" open={open} onCancel={...} onOk={handleOk} destroyOnHidden>
+            <Form<UploadFormValues> form={form} layout="vertical">
+                <Form.Item
+                    name="files" l  abel="选择文件"
+                    valuePropName="fileList"
+                    getValueFromEvent={(e) => (Array.isArray(e) ? e : e?.fileList)}
+                    rules={[{ required: true, message: '请选择文件' }]}
+                >
+                    <Upload {...uploadProps}>
+                        <Button icon={<InboxOutlined />}>点击选择文件</Button>
+                    </Upload>
+                </Form.Item>
+                <Form.Item
+                    name="permission_tags" label="权限标签"
+                    extra="留空视为公开（所有登录用户可见）；填入后仅拥有匹配标签的角色可见"
+                >
+                    <PermissionTagsField placeholder='例如：hr、sales、"public"' />
+                </Form.Item>
+            </Form>
+        </Modal>
+    )
+}
+
 // 文档轮训展示
 export function DocumentsPage() {
     const [page, setPage] = useState(1)
     const [pageSize, setPageSize] = useState(20)
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
     const queryClient = useQueryClient()
+    const isAdmin = useAuthStore((s) => Boolean(s.user?.isAdmin))
 
     // 根据条件获取文档列表（React Query）
     const listQuery = useQuery({
@@ -81,8 +133,10 @@ export function DocumentsPage() {
      * 上传文件方法
      */
     const uploadMutation = useMutation({
-        mutationFn: async (file: File) => {
-            const res = await uploadDocument({ body: { file } })
+        mutationFn: async ({ file, tags }: {file: File; tags: string[]}) => {
+            const res = await uploadDocument({ body: {
+                    file, permission_tags: tags.length > 0 ? JSON.stringify(tags) : null,
+                } })
             return res.data!
         },
         onSuccess: (doc) => {
@@ -154,6 +208,23 @@ export function DocumentsPage() {
             ),
         },
         {
+            title: '权限标签',
+            dataIndex: 'permission_tags',
+            width: 200,
+            render: (tags: string[]) =>
+                tags.length === 0 ? (
+                    <Tag>公开</Tag>
+                ) : (
+                    <Space size={4} wrap>
+                        {tags.map((t) => (
+                            <Tag color={t === '*' ? 'gold' : 'blue'} key={t}>
+                                {t}
+                            </Tag>
+                        ))}
+                    </Space>
+                ),
+        },
+        {
             title: '上传时间',
             dataIndex: 'created_at',
             width: 200,
@@ -206,6 +277,18 @@ export function DocumentsPage() {
             }
         }
     ]
+    if (isAdmin) {
+        columns.push({
+            title: '操作',
+            key: 'actions',
+            width: 180,
+            render: (_, record) => (
+                <Space>
+                    {/*删除重置按钮*/}
+                </Space>
+            )
+        })
+    }
 
     return (
         <div>
