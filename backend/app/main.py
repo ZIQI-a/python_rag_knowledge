@@ -31,7 +31,7 @@ def create_app() -> FastAPI:
     configure_observability()
     logger = get_logger(__name__)
 
-    app = FastAPI(title=settings.app_name)
+    app = FastAPI(title=settings.app_name, lifespan=lifespan)
 
     app.add_middleware(
         CORSMiddleware,

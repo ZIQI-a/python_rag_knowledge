@@ -1,9 +1,8 @@
 """ 第一次启动时，如果没有账号，默认建一个种子用户和管理员账号 """
-from langchain_classic.embeddings import awa
 
 from app.core.config import settings
 from app.core.logging import get_logger
-from app.core.security import has_password
+from app.core.security import hash_password
 from app.db.models import Role, User, UserStatus
 from app.db.repositories.role_repo import RoleRepository
 from app.db.repositories.user_repo import UserRepository
@@ -51,7 +50,7 @@ async def seed_default_admin() -> None:
 
         admin_user = User(
             username=settings.default_admin_username,
-            password_hash=has_password(settings.default_admin_password),
+            password_hash=hash_password(settings.default_admin_password),
             display_name=settings.default_admin_display_name,
             status=UserStatus.ACTIVE
         )
