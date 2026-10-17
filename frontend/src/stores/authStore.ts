@@ -14,10 +14,10 @@ export interface AuthUser{
 }
 
 interface AuthState{
-    user: {id: string; name: string} | null
     token: string | null
+    user: AuthUser | null
     ready: boolean
-    setAuth: (user: AuthState['user'], token: string | null) => void
+    setAuth: (token: string, user: AuthUser) => void
     setUser: (user: AuthUser) => void
     logout: () => void
     hasToken: () => boolean
@@ -38,24 +38,28 @@ function loadUser(): AuthUser | null {
 export const useAuthStore = create<AuthState>((set, get) => ({
     token: null,
     user: null,
-    ready: false,
+    ready: false, // 是否已加载完成
 
-    setAuth: (user, token) => {
+    //  设置用户信息和token
+    setAuth: (token, user) => {
         localStorage.setItem(TOKEN_KEY, token)
         localStorage.setItem(USER_KEY, JSON.stringify(user))
         set({ token, user })
     },
-
+    // 设置用户信息
     setUser: (user) => {
         localStorage.setItem(USER_KEY, JSON.stringify(user))
         set({ user })
     },
+    // 登出
     logout: () => {
         localStorage.removeItem(TOKEN_KEY)
         localStorage.removeItem(USER_KEY)
         set({user: null, token: null})
     },
+    // 判断是否有token
     hasToken: () => Boolean(get().token),
+    // 加载用户信息
     hydrate: () => {
         const token = localStorage.getItem(TOKEN_KEY)
         const user = loadUser()

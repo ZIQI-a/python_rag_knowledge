@@ -6,7 +6,8 @@ const { Text } = Typography
 
 interface TraceIdPanelProps {
     traceId: string | null | undefined
-    traceUrl: string | null
+    // 评测详情等场景后端只返回 trace_id，没有 trace_url，所以这里不强制传
+    traceUrl?: string | null
 }
 
 export function TraceIdPanel({ traceId, traceUrl }: TraceIdPanelProps) {
