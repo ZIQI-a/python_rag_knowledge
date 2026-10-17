@@ -8,6 +8,7 @@ import {
     Tooltip,
     Typography,
     Upload,
+    type UploadFile,
     type UploadProps
 } from "antd";
 import {deleteDocument, type DocumentRead, listDocuments, retryDocument, uploadDocument} from "@/client";
@@ -47,8 +48,18 @@ function formatSize(size: number): string {
     return `${(size / 1024 / 1024).toFixed(2)} MB`
 }
 
+// 上传表单的字段：files 是 antd Upload 的文件列表，permission_tags 是权限标签
+interface UploadFormValues {
+    files?: UploadFile[]
+    permission_tags?: string[]
+}
+
 /** 上传文档弹窗 */
-function UploadModal({ open, onClose, onUpload }) {
+function UploadModal({ open, onClose, onUpload }: {
+    open: boolean
+    onClose: () => void
+    onUpload: (file: File, tags: string[]) => void
+}) {
     const [form] = Form.useForm<UploadFormValues>()
 
     const uploadProps: UploadProps = {
@@ -73,10 +84,10 @@ function UploadModal({ open, onClose, onUpload }) {
     }
 
     return (
-        <Modal title="上传文档" open={open} onCancel={...} onOk={handleOk} destroyOnHidden>
+        <Modal title="上传文档" open={open} onCancel={onClose} onOk={handleOk} destroyOnHidden>
             <Form<UploadFormValues> form={form} layout="vertical">
                 <Form.Item
-                    name="files" l  abel="选择文件"
+                    name="files" label="选择文件"
                     valuePropName="fileList"
                     getValueFromEvent={(e) => (Array.isArray(e) ? e : e?.fileList)}
                     rules={[{ required: true, message: '请选择文件' }]}
@@ -89,7 +100,13 @@ function UploadModal({ open, onClose, onUpload }) {
                     name="permission_tags" label="权限标签"
                     extra="留空视为公开（所有登录用户可见）；填入后仅拥有匹配标签的角色可见"
                 >
-                    <PermissionTagsField placeholder='例如：hr、sales、"public"' />
+                    <Select
+                        mode="tags"
+                        tokenSeparators={[',']}
+                        open={false}
+                        placeholder="权限标签"
+                        options={[{label: '*（全部文档）', value: '*'}]}
+                    />
                 </Form.Item>
             </Form>
         </Modal>
