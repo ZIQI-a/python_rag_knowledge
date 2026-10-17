@@ -6,6 +6,10 @@ import {App as AntdApp, ConfigProvider} from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import './index.css'
 import {router} from './routes'
+import {useAuthStore} from "@/stores/authStore.ts";
+
+// 先加载本地存储的用户信息
+useAuthStore.getState().hydrate()
 
 // 构建查询服务
 const queryClient = new QueryClient({
