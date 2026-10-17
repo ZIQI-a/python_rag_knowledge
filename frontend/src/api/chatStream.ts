@@ -2,6 +2,7 @@
 
 import type {AgentStep, CitationRead, QueryRouteRead} from "@/client/types.gen";
 import {fetchEventSource} from "@microsoft/fetch-event-source";
+import {getAuthToken, useAuthStore} from "@/stores/authStore.ts";
 
 export interface ChatStartEvent {
     type: 'start'
@@ -76,16 +77,30 @@ export async function streamChat({
                                      question,
                                      signal,
                                      onEvent,
-                                 }: StreamChatParams): Promise<void> {
+}: StreamChatParams): Promise<void> {
+    const token = getAuthToken()
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    if(token) {
+        headers.Authorization = `Bearer ${token}`
+    }
+
     await fetchEventSource(
         `/api/conversations/${conversationId}/chat`,
         {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers,
             body: JSON.stringify({question}),
             signal,
             openWhenHidden: true,
             async onopen(response) {
+                if(response.status === 401) {
+                    useAuthStore.getState().logout()
+                    if (window.location.pathname !== '/login') {
+                        const back = window.location.pathname + window.location.search
+                        window.location.replace(`/login?back=${encodeURIComponent(back)}`)
+                    }
+                    throw new FatalSseError("请先登录")
+                }
                 if (response.ok && response.headers.get('content-type')?.includes('text/event-stream')) {
                     return
                 }
