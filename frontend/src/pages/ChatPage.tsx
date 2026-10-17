@@ -25,13 +25,14 @@ import {AgentStepsPanel} from "@/components/AgentStepsPanel.tsx";
 import {conversationsQueryKey} from "@/api/queryKeys.ts";
 import {ConversationSidebar} from "@/components/ConversationSidebar.tsx";
 import {TraceIdPanel} from "@/components/TraceIdPanel.tsx";
+import {useAuthStore} from "@/stores/authStore.ts";
 
 
 const {Text} = Typography
 const {TextArea} = Input
 const {Sider, Content} = Layout
 // 本地存储的key
-const STORAGE_KEY = 'rag.chat.conversation_id'
+const STORAGE_KEY_PREFIX = 'rag.chat.conversation_id'
 const CITATION_HASH_PREFIX = '#cite-'
 
 const REFUSAL_ANSWER = '啊哦，知识库中没有找到与该问题相关的可靠依据'
@@ -73,9 +74,11 @@ function fromServerMessage(m: MessageRead): UiMessage {
 // 主要的页面聊天
 export function ChatPage() {
     const queryClient = useQueryClient()
+    const userId = useAuthStore((s) => s.user?.id)
+    const storageKey = `${STORAGE_KEY_PREFIX}.${userId}`
     // 对话id，从本地存储获取，如果没有则生成一个新的
     const [conversationId, setConversationId] = useState<string | null>(
-        () => localStorage.getItem(STORAGE_KEY) || null
+        () => localStorage.getItem(storageKey) || null
     )
     const [draft, setDraft] = useState('') // 用户输入的草稿
     // 待发送的消息（只放在前端state结束后，由历史接口返回正式ID）
@@ -95,7 +98,7 @@ export function ChatPage() {
         },
         onSuccess: async (conversation) => {
             setConversationId(conversation.id)
-            localStorage.setItem(STORAGE_KEY, conversation.id)
+            localStorage.setItem(storageKey, conversation.id)
             setPendingMessages([])
             queryClient.removeQueries({queryKey: ['conversation']})
             await queryClient.invalidateQueries({queryKey: conversationsQueryKey})
@@ -157,7 +160,7 @@ export function ChatPage() {
         abortRef.current?.abort()
         setPendingMessages([])
         setIsStreaming(false)
-        localStorage.setItem(STORAGE_KEY, id)
+        localStorage.setItem(storageKey, id)
         setConversationId(id)
     }
     // 处理删除对话
@@ -166,7 +169,7 @@ export function ChatPage() {
         abortRef.current?.abort()
         setPendingMessages([])
         setIsStreaming(false)
-        localStorage.removeItem(STORAGE_KEY)
+        localStorage.removeItem(storageKey)
         setConversationId(null)
         queryClient.removeQueries({queryKey: ['conversation', deletedId]})
     }
