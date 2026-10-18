@@ -287,16 +287,16 @@ class ChatService:
 
                 # 6 AI消息+引用写入数据库
                 await self._persist_assistant_message(state, session, verify_result=verify_result)
-                if(
+                if (
                     settings.semantic_cache_enabled and
                     not state.get("refused") and query_embedding is not None
                 ):
-                    await get_semantic_cache().save(
+                    await self._try_cache_save(
                         question=question,
                         query_embedding=query_embedding,
                         answer=state["answer"],
                         citations=citations_payload,
-                        permission_scope=permissions,
+                        permissions=permissions,
                     )
                 yield {
                     "event": "message_end",
@@ -478,8 +478,36 @@ class ChatService:
         except Exception:
             logger.exception("semantic cache: embedding failed, skip lookup")
             return None, None
-        cached = await get_semantic_cache().lookup(embedding, permissions)
+        cached: CachedAnswer | None = None
+        try:
+            # 构造失败（Redis 不可用 / 连错实例）也要当成未命中，不能拖垮问答
+            cached = await get_semantic_cache().lookup(embedding, permissions)
+        except Exception:
+            logger.exception("semantic cache: unavailable, skip lookup")
         return cached, embedding
+
+    async def _try_cache_save(
+            self, *,
+            question: str,
+            query_embedding: list[float],
+            answer: str,
+            citations: list[dict],
+            permissions: list[str],
+    ) -> None:
+        """写缓存；缓存不可用只记日志，不影响已经把答案推给用户的主链路。
+
+        与 _try_cache_lookup 对称：构造和写入的异常都在这里兜住。
+        """
+        try:
+            await get_semantic_cache().save(
+                question=question,
+                query_embedding=query_embedding,
+                answer=answer,
+                citations=citations,
+                permission_scope=permissions,
+            )
+        except Exception:
+            logger.exception("semantic cache: unavailable, skip save")
 
     async def _stream_cache_hit(
             self,
