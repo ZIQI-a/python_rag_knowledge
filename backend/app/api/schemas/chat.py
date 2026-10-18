@@ -134,7 +134,7 @@ class MessageRead(BaseModel):
     def from_orm(cls, message) -> "MessageRead":
         is_assistant = message.role == "assistant"
         trace_id = _parse_trace_id(message.extra_metadata) if is_assistant else None
-        cache_hit = _parse_cache_hit(message.extra_metadata) if is_assistant else False,
+        cache_hit = _parse_cache_hit(message.extra_metadata) if is_assistant else False
         return cls(
             id=message.id,
             role=message.role,
