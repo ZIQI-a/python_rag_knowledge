@@ -36,7 +36,6 @@ async def upload_document(
         admin: CurrentAdmin,
         session: DbSession,
         _rate_limit: RateLimited,
-        background_tasks: BackgroundTasks,
         file: UploadFile = File(..., description="待上传文档（PDF/DOCX/Markdown/HTML）"),
         permission_tags: str | None = Form(
             default=None, description="JSON 数组字符串"
@@ -51,7 +50,7 @@ async def upload_document(
         if isinstance(parsed, list):
             tags = [str(t) for t in parsed]
     service = DocumentService(session)
-    document = await service.upload(file, background_tasks, created_by=admin.id, permission_tags=tags)
+    document = await service.upload(file, created_by=admin.id, permission_tags=tags)
     return DocumentRead.model_validate(document)
 
 # """ 根据条件分页获取文档列表 """
@@ -95,10 +94,9 @@ async def retry_document(
         _: CurrentAdmin,
         document_id: UUID,
         session: DbSession,
-        background_tasks: BackgroundTasks,
 ) -> DocumentRead:
     service = DocumentService(session)
-    document = await service.retry(document_id, background_tasks)
+    document = await service.retry(document_id)
     return DocumentRead.model_validate(document)
 
 """ 文件下载和预览API """

@@ -4,19 +4,20 @@ from collections.abc import Sequence
 from pathlib import PurePath
 from uuid import UUID
 
-from fastapi import BackgroundTasks, UploadFile
+from fastapi import UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.exceptions import NotFoundError, ValidationError
 from app.core.logging import get_logger
-from app.db.models import Document, DocumentStatus, DocumentChunk
+from app.db.models import Document, DocumentStatus, DocumentChunk, IngestionTaskType
 from app.db.repositories.chunk_repo import (
     DocumentChunkRepository, ChunkStats,
 )
 from app.db.repositories.document_repo import DocumentRepository
-from app.ingestion.pipeline import ingest_document
 from app.storage.file_service import FileService, get_file_service
+from app.db.repositories.ingestion_task_repo import IngestionTaskRepository
+from app.ingestion.tasks import ingest_document_task, reindex_document_task
 
 logger = get_logger(__name__)
 
@@ -84,6 +85,7 @@ class DocumentService:
     def __init__(self, session: AsyncSession, file_serice: FileService | None = None) -> None:
         self.session = session
         self.repo = DocumentRepository(self.session)
+        self.task_repo = IngestionTaskRepository(session)
         self.chunk_repo = DocumentChunkRepository(self.session)
         self.file_service = file_serice or get_file_service()
 
@@ -91,7 +93,6 @@ class DocumentService:
     async def upload(
         self,
         file: UploadFile,
-        background_tasks: BackgroundTasks,
         *,
         created_by: UUID | None = None,
         permission_tags: Sequence[str] | None = None,
@@ -134,10 +135,10 @@ class DocumentService:
         )
 
         await self.repo.add(document)
+        task = await self.task_repo.create(document.id, IngestionTaskType.INGEST)
         await self.session.commit()
         await self.session.refresh(document)
-
-        background_tasks.add_task(ingest_document, document.id)
+        ingest_document_task.delay(str(document.id), str(task.id))
         return document
 
     # 获取文档
@@ -176,7 +177,7 @@ class DocumentService:
         logger.info(f"文档删除成功: {document_id}")
 
     # 失败后重试操作
-    async def retry(self, document_id: UUID, background_tasks: BackgroundTasks) -> Document:
+    async def retry(self, document_id: UUID) -> Document:
         doc = await self.get(document_id)
         if doc.status != DocumentStatus.FAILED:
             raise ValidationError(f"当前文档状态不是失败状态，无法重试: {doc.status}")
@@ -185,10 +186,11 @@ class DocumentService:
         # 更新状态并提交到数据库
         doc.status = DocumentStatus.UPLOADING
         doc.error_message = None
+        task = await self.task_repo.create(doc.id, IngestionTaskType.INGEST)
         await self.session.commit()
         await self.session.refresh(doc)
 
-        background_tasks.add_task(ingest_document, doc.id)
+        ingest_document_task.delay(str(doc.id), str(task.id))
         logger.info(f"重试文档任务执行完成: {document_id}")
         return doc
 
