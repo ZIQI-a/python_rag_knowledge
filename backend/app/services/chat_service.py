@@ -1,17 +1,19 @@
 """ 问答流程 """
+import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from uuid import UUID
 
-import time
 from langsmith import traceable
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ingestion import embedder
 from app.core.config import settings
 from app.core.exceptions import NotFoundError
 from app.core.logging import get_logger
 from app.core.observbility import get_current_trace_id, build_trace_url
 from app.db.models import Conversation, Message, AnswerCitation
+from app.db.models import User
 from app.db.repositories.citation_repo import AnswerCitationRepository
 from app.db.repositories.conversation_repo import ConversationRepository
 from app.db.session import AsyncSessionLocal
@@ -19,10 +21,10 @@ from app.llm.answer_verifier import VerifyResult, get_answer_verifier
 from app.llm.prompts import REFUSAL_ANSWER
 from app.retrieval.vector_retriever import RetrievedChunk
 from app.services.permission_service import WILDCARD_PERMISSION_TAG, compute_user_permission_tags
+from app.services.semantic_cache_service import get_semantic_cache, CachedAnswer
 from app.workflows.graph import get_rag_graph
 from app.workflows.nodes import load_context, stream_generate
 from app.workflows.rag_state import RAGState
-from app.db.models import User
 
 # 导入日志模块
 logger = get_logger(__name__)
@@ -87,11 +89,14 @@ def _build_verify_payload(
 
 
 """ SSE和Meta共用的核载形式 """
+
+
 def _serialize_agent_steps(state: RAGState) -> list[dict]:
     return [dict(step) for step in state.get("agent_steps", [])]
 
 
 """ 评测专用 """
+
 
 @dataclass(frozen=True)
 class EvaluationAnswer:
@@ -107,6 +112,20 @@ class EvaluationAnswer:
     first_token_latency_ms: int | None
     error_message: str | None = None
     citations: list[dict] = field(default_factory=list)
+
+
+def _safe_uuid(raw: str | None) -> UUID | None:
+    """缓存里 citation 的 document_id / chunk_id 是字符串，落库需要 UUID。
+
+    历史快照中可能为 None（原 chunk 已被删），按可空字段处理。
+    """
+    if not raw:
+        return None
+    try:
+        return UUID(str(raw))
+    except (TypeError, ValueError):
+        return None
+
 
 class ChatService:
     def __init__(self, session: AsyncSession) -> None:
@@ -129,7 +148,8 @@ class ChatService:
         return conversation
 
     # 获取对话历史消息
-    async def list_messages(self, conversation_id: UUID, user_id: UUID | None = None) -> tuple[Conversation | None, list[Message]]:
+    async def list_messages(self, conversation_id: UUID, user_id: UUID | None = None) -> tuple[
+        Conversation | None, list[Message]]:
         conversation = await self.get_conversation(conversation_id, user_id=user_id)
         repo = ConversationRepository(self.session)
         messages = await repo.list_message(conversation_id)
@@ -166,6 +186,8 @@ class ChatService:
         任何阶段出错则改 yield error 并提前结束。
         """
         await self.get_conversation(conversation_id, user_id=current_user.id)
+        # 本次请求的有效权限标签，进图前算一次，后面 state / 缓存都用这一份
+        permissions = compute_user_permission_tags(current_user)
 
         async with AsyncSessionLocal() as session:
             try:
@@ -173,12 +195,23 @@ class ChatService:
                 state: RAGState = {
                     "conversation_id": conversation_id,
                     "question": question,
-                    "permissions": compute_user_permission_tags(current_user),
+                    "permissions": permissions,
                     "trace_id": trace_id
                 }
 
                 # 1 加载上下文（仅历史消息), 加载路由
                 state.update(await load_context(state, session))
+
+                """ 查询语义缓存： 相似度阈值和权限范围一致才命中 """
+                cache_hit, query_embedding = await self._try_cache_lookup(
+                    question, permissions
+                )
+                if cache_hit is not None:
+                    async for event in self._stream_cache_hit(
+                        state, session, cache_hit, trace_id
+                    ):
+                        yield event
+                    return
 
                 # 2 跑RAG子图
                 final_state = await get_rag_graph().ainvoke(state)
@@ -254,6 +287,17 @@ class ChatService:
 
                 # 6 AI消息+引用写入数据库
                 await self._persist_assistant_message(state, session, verify_result=verify_result)
+                if(
+                    settings.semantic_cache_enabled and
+                    not state.get("refused") and query_embedding is not None
+                ):
+                    await get_semantic_cache().save(
+                        question=question,
+                        query_embedding=query_embedding,
+                        answer=state["answer"],
+                        citations=citations_payload,
+                        permission_scope=permissions,
+                    )
                 yield {
                     "event": "message_end",
                     "data": {
@@ -302,7 +346,8 @@ class ChatService:
             "refused": bool(state.get("refused")),
             "query_route": _build_query_route_payload(state),
             "agent_steps": _serialize_agent_steps(state),
-            "trace_id": state.get("trace_id")
+            "trace_id": state.get("trace_id"),
+            "cache_hit": False,
         }
         if verify_result is not None:
             extra_metadata["verify_result"] = _build_verify_payload(
@@ -338,6 +383,7 @@ class ChatService:
         state["assistant_message_id"] = assistant_msg.id
 
     """ 跑一遍完整RAG流程，拿非流式结果用于评测 """
+
     @traceable(name="ChatService.answer_for_evaluation", run_type="chain")
     async def answer_for_evaluation(self, question: str) -> EvaluationAnswer:
         started_at = time.perf_counter()
@@ -416,4 +462,108 @@ class ChatService:
                 error_message=str(e).strip() or e.__class__.__name__
             )
 
+    async def _try_cache_lookup(
+            self, question: str, permissions: list[str]
+    ) -> tuple[CachedAnswer | None, list[float] | None]:
+        """查询语义缓存。
+
+        返回 (命中项, query_embedding)：
+        - 关掉缓存或 embedding 失败时全部返回 (None, None)，主链路兜底
+        - 未命中时返回 (None, embedding)，外层在 save 阶段可以直接复用
+        """
+        if not settings.semantic_cache_enabled:
+            return None, None
+        try:
+            embedding = await embedder.get_embeddings().aembed_query(question)
+        except Exception:
+            logger.exception("semantic cache: embedding failed, skip lookup")
+            return None, None
+        cached = await get_semantic_cache().lookup(embedding, permissions)
+        return cached, embedding
+
+    async def _stream_cache_hit(
+            self,
+            state: RAGState,
+            session: AsyncSession,
+            cached: CachedAnswer,
+            trace_id: str | None,
+    ) -> AsyncIterator[dict]:
+        """命中分支的简化 SSE：跳过 query_route / agent_steps / verify_result，
+        但仍要落库 user / assistant 消息，保证历史记录完整。"""
+        state["answer"] = cached.answer
+        state["refused"] = False
+
+        await self._persist_user_message(state, session)
+        yield {
+            "event": "message_start",
+            "data": {
+                "user_message_id": str(state["user_message_id"]),
+                "trace_id": trace_id,
+                "trace_url": build_trace_url(trace_id),
+                "cache_hit": True,
+            },
+        }
+        yield {
+            "event": "citations",
+            "data": {"citations": cached.citations},
+        }
+        # 命中路径不流式：缓存答案瞬时可用，一次性整段发给前端，前端按 token 累加渲染
+        yield {"event": "token", "data": {"delta": cached.answer}}
+
+        await self._persist_cached_assistant_message(
+            state, session, citations=cached.citations
+        )
+        yield {
+            "event": "message_end",
+            "data": {
+                "message_id": str(state["assistant_message_id"]),
+                "refused": False,
+            },
+        }
+
+    async def _persist_cached_assistant_message(
+            self,
+            state: RAGState,
+            session: AsyncSession,
+            *,
+            citations: list[dict],
+    ) -> None:
+        """缓存命中路径下落库 assistant 消息。
+
+        - cache_hit=True 写入 metadata，刷新历史时前端继续展示「缓存命中」Tag
+        - citations 完全复用缓存里的快照（含 retrieval_meta），保证历史与命中
+          原始问答完全一致；新引用 row 由后端基于 ordinal 顺序重建
+        """
+        conv_repo = ConversationRepository(session)
+        citation_repo = AnswerCitationRepository(session)
+
+        assistant_msg = ConversationRepository.make_assistant_message(
+            state["conversation_id"],
+            content=state["answer"],
+            extra_metadata={
+                "refused": False,
+                "trace_id": state.get("trace_id"),
+                "cache_hit": True,
+            },
+        )
+        await conv_repo.add_message([assistant_msg])
+
+        citation_rows = [
+            AnswerCitation(
+                message_id=assistant_msg.id,
+                ordinal=int(c.get("ordinal") or idx + 1),
+                document_id=_safe_uuid(c.get("document_id")),
+                chunk_id=_safe_uuid(c.get("chunk_id")),
+                document_name=c.get("document_name", ""),
+                page_no=c.get("page_no"),
+                quote=c.get("quote", ""),
+                retrieval_meta=c.get("retrieval_meta"),
+            )
+            for idx, c in enumerate(citations)
+        ]
+        if citation_rows:
+            await citation_repo.bulk_add(citation_rows)
+
+        await session.commit()
+        state["assistant_message_id"] = assistant_msg.id
 
