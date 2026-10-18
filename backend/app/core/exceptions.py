@@ -44,3 +44,8 @@ class ConflictError(AppException):
     code = "conflict"
     message = "资源冲突"
     http_status = HTTPStatus.CONFLICT
+
+class RateLimitedError(AppException):
+    code = "rate_limited"
+    message = "请求频率过高"
+    http_status = HTTPStatus.TOO_MANY_REQUESTS
