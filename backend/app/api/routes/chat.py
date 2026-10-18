@@ -9,7 +9,7 @@ from app.api.schemas.chat import ConversationRead, ConversationCreate, Conversat
     ConversationPage, ConversationListItem
 from app.db.deps import DbSession
 from app.services.chat_service import ChatService
-from app.api.deps import CurrentUser
+from app.api.deps import CurrentUser, RateLimited
 
 router = APIRouter(prefix="/conversations", tags=["chat"])
 
@@ -57,7 +57,8 @@ async def stream_chat(
         conversation_id: UUID,
         payload: ChatRequest,
         session: DbSession,
-        user: CurrentUser
+        user: CurrentUser,
+        _rate_limit: RateLimited,
 ) -> AsyncIterator[ServerSentEvent]:
     service = ChatService(session)
     async for sse_event in service.stream_answer(conversation_id, payload.question, current_user=user):

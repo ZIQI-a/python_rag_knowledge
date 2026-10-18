@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, BackgroundTasks, File, Query, Response, UploadFile, Form, Header
 
 from app.db.deps import DbSession
-from app.api.deps import CurrentUser, CurrentAdmin, get_current_user
+from app.api.deps import CurrentUser, CurrentAdmin, get_current_user, RateLimited
 from app.api.schemas.documents import (
     DocumentChunkDetail,
     DocumentChunkListResponse,
@@ -35,6 +35,7 @@ router = APIRouter(prefix="/documents", tags=["documents"])
 async def upload_document(
         admin: CurrentAdmin,
         session: DbSession,
+        _rate_limit: RateLimited,
         background_tasks: BackgroundTasks,
         file: UploadFile = File(..., description="待上传文档（PDF/DOCX/Markdown/HTML）"),
         permission_tags: str | None = Form(

@@ -4,7 +4,9 @@ from typing import Annotated
 from fastapi.params import Depends, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.exceptions import UnauthorizedError, PermissionDeniedError
+from app.core.rate_limiter import get_rate_limiter
 from app.core.security import decode_access_token
 from app.db.models import  User, UserStatus
 from app.db.repositories.user_repo import UserRepository
@@ -50,5 +52,15 @@ async def get_current_admin(
 
     return user
 
+# 挂载限流
+async def enforce_rate_limiter(
+        user: Annotated[User, Depends(get_current_user)]
+) -> None:
+    """ 滑动窗口限流，按用户每分钟限流 """
+    if not settings.rate_limit_enabled:
+        return
+    await get_rate_limiter().check(f"user:{user.id}")
+
 CurrentUser = Annotated[User, Depends(get_current_user)]
 CurrentAdmin = Annotated[User, Depends(get_current_admin)]
+RateLimited = Annotated[None, Depends(enforce_rate_limiter)]
