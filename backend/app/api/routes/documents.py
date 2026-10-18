@@ -13,9 +13,9 @@ from app.api.schemas.documents import (
     DocumentChunkStats,
     DocumentListResponse,
     DocumentRead,
-    DocumentStatusValue, DocumentPermissionTagsUpdate,
+    DocumentStatusValue, DocumentPermissionTagsUpdate, IngestionTaskRead,
 )
-from app.db.models import DocumentStatus
+from app.db.models import DocumentStatus, Document
 from app.services.document_service import DocumentService
 from app.services.permission_service import (
 compute_user_permission_tags, is_admin
@@ -51,7 +51,7 @@ async def upload_document(
             tags = [str(t) for t in parsed]
     service = DocumentService(session)
     document = await service.upload(file, created_by=admin.id, permission_tags=tags)
-    return DocumentRead.model_validate(document)
+    return await _to_document_read(document, service)
 
 # """ 根据条件分页获取文档列表 """
 @router.get("", response_model=DocumentListResponse, operation_id="listDocuments")
@@ -68,7 +68,7 @@ async def list_documents(
         permission_tags=_viewer_tags(user)
     )
     return DocumentListResponse(
-        items=[DocumentRead.model_validate(d) for d in items],
+        items=[await _to_document_read(d, service) for d in items],
         total=total,
         page=page,
         page_size=page_size
@@ -79,7 +79,7 @@ async def list_documents(
 async def get_document(document_id: UUID, session: DbSession, user: CurrentUser) -> DocumentRead:
     service = DocumentService(session)
     document = await service.get(document_id, permission_tags=_viewer_tags(user))
-    return DocumentRead.model_validate(document)
+    return await _to_document_read(document, service)
 
 # """ 删除指定ID的文档 """
 @router.delete("/{document_id}", status_code=204, operation_id="deleteDocument")
@@ -97,7 +97,7 @@ async def retry_document(
 ) -> DocumentRead:
     service = DocumentService(session)
     document = await service.retry(document_id)
-    return DocumentRead.model_validate(document)
+    return await _to_document_read(document, service)
 
 """ 文件下载和预览API """
 _DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -176,7 +176,7 @@ async def get_document_chunk(
 ) -> DocumentChunkDetail:
     service = DocumentService(session)
     chunk = await service.get_chunk(document_id, chunk_id, permission_tags=_viewer_tags(user))
-    return DocumentChunkDetail.from_orm_chunk(chunk)
+    return await _to_document_read(document, service)
 
 
 @router.patch(
@@ -193,4 +193,37 @@ async def update_permission_tags(
     """  """
     service = DocumentService(session)
     document = await service.update_permission_tags(document_id, payload.permission_tags)
-    return DocumentRead.model_validate(document)
+    return await _to_document_read(document, service)
+
+@router.post(
+    "/{document_id}/reindex",
+    response_model=DocumentRead,
+    operation_id="reindexDocument",
+)
+async def reindex_document(
+    _: CurrentAdmin,
+    _rate_limit: RateLimited,
+    document_id: UUID,
+    session: DbSession,
+    file: UploadFile = File(
+        ..., description="新版本文件（MIME 必须与原文档一致）"
+    ),
+) -> DocumentRead:
+    """上传新版本文件，触发按 chunk_hash 对齐的增量重建。"""
+    service = DocumentService(session)
+    document = await service.reindex(document_id, file)
+    return await _to_document_read(document, service)
+
+async def _to_document_read(
+    document: Document, service: DocumentService
+) -> DocumentRead:
+    """组装 DocumentRead：附带 latest_task，前端轮询时直接展示任务进度卡片。"""
+    latest = await service.get_latest_task(document.id)
+    return DocumentRead.model_validate(
+        {
+            **{c.name: getattr(document, c.name) for c in document.__table__.columns},
+            "latest_task": IngestionTaskRead.model_validate(latest)
+            if latest is not None
+            else None,
+        }
+    )

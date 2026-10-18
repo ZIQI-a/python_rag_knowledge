@@ -235,3 +235,56 @@ class DocumentService:
         await self.session.commit()
         await self.session.refresh(doc)
         return doc
+
+    async def reindex(
+            self, document_id: UUID, file: UploadFile,
+    ) -> Document:
+        """ 用新文件替换原文档，并触发增量重建 """
+        doc = await self.repo.get_by_id(document_id) # 先确保文档存在
+        if doc is None:
+            raise NotFoundError("文档不存在")
+        # 只允许就绪或失败状态出发，避免与正在进行的抢资源
+        if doc.status not in {DocumentStatus.READY, DocumentStatus.FAILED}:
+            raise ValidationError(f"当前文档状态不支持重建: {doc.status}")
+
+        # 读取文件内容并上传到COS
+        mime_type, suffix = _resolve_mime_and_suffix(file)
+        if mime_type != doc.mime_type:
+            raise ValidationError(
+                f"新版本文件类型必须与原文档一致(当前为{doc.mime_type})"
+            )
+
+        content = await file.read()
+        max_bytes = settings.upload_max_size_mb * 1024 * 1024
+        if len(content) == 0:
+            raise ValidationError("上传文件内容为空")
+        if len(content) > max_bytes:
+            raise ValidationError(f"文件超过{settings.upload_max_size_mb}MB上限")
+
+        new_hash = hashlib.sha256(content).hexdigest()
+        # 内容完全一致，没有重建必要，直接返回
+        if new_hash == doc.file_hash:
+            raise ValidationError("新版本文件内容与原文档内容一致，无需重建")
+        # 上传新文件到COS
+        new_object_key = await self.file_service.upload(
+            content=content, file_hash=new_hash, suffix=suffix, mime_type=mime_type
+        )
+
+        # 更新文档记录
+        doc.file_hash = new_hash
+        doc.cos_object_key = new_object_key
+        doc.cos_bucket = self.file_service.bucket
+        doc.cos_region = self.file_service.region
+        doc.size = len(content)
+        doc.status = DocumentStatus.PARSING
+        doc.error_message = None
+        if file.filename:
+            doc.name = file.filename
+        #  创建重建任务
+        task = await self.task_repo.create(doc.id, IngestionTaskType.REINDEX)
+        await self.session.commit()
+        await self.session.refresh(doc)
+
+        reindex_document_task.delay(str(doc.id), str(task.id))
+        logger.info("文档重建任务执行完成: id=%s", document_id)
+        return doc

@@ -26,6 +26,8 @@ class DocumentRead(BaseModel):
     size: int
     status: DocumentStatusValue
     error_message: str | None
+    version: int = 1
+    latest_task: IngestionTaskRead | None = None
     # 空数组视为"公开"；非空数组与用户有效权限标签做重叠匹配
     permission_tags: list[str] = Field(default_factory=list)
     created_by: UUID | None = None
@@ -112,3 +114,22 @@ class DocumentChunkDetail(BaseModel):
             created_at=chunk.created_at,
         )
 
+# 单条入库任务快照
+IngestionTaskTypeValue = Literal["ingest", "reindex"]
+IngestionTaskStatusValue = Literal["pending", "running", "success", "failed"]
+
+class IngestionTaskRead(BaseModel):
+    """单条入库任务快照（详情页「最近一次任务」卡片用）。"""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    task_type: IngestionTaskTypeValue
+    status: IngestionTaskStatusValue
+    retry_count: int
+    error_message: str | None = None
+    progress_total: int
+    progress_done: int
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+    created_at: datetime
