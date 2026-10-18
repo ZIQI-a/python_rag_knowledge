@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.exceptions import NotFoundError, ValidationError
 from app.core.logging import get_logger
-from app.db.models import Document, DocumentStatus, DocumentChunk, IngestionTaskType
+from app.db.models import Document, DocumentStatus, DocumentChunk, IngestionTaskType, IngestionTask
 from app.db.repositories.chunk_repo import (
     DocumentChunkRepository, ChunkStats,
 )
@@ -223,6 +223,9 @@ class DocumentService:
         if chunk is None:
             raise NotFoundError(f"文档Chunk不存在: {document_id} {chunk_id}")
         return chunk
+
+    async def get_latest_task(self, document_id: UUID) -> IngestionTask | None:
+        return await self.task_repo.get_latest_by_document(document_id)
 
     # admin 修改文档可见性标签
     async def update_permission_tags(

@@ -165,12 +165,13 @@ async def _run_incremental(
     async with AsyncSessionLocal() as session:
         chunk_repo = DocumentChunkRepository(session)
         await chunk_repo.delete_by_ids(to_delete_ids)
-        # 更新命中Chunk的位置
+        # old 来自已关闭的 session，是游离对象；merge 后才会被当前 session 跟踪并生成 UPDATE
         for old, nc in to_update:
-            old.chunk_index = nc.metadata["chunk_index"]
-            old.page_no = nc.metadata["page_no"]
-            old.section_path = nc.metadata.get("section_path")
-            old.extra_metadata = nc.metadata
+            merged = await session.merge(old)
+            merged.chunk_index = nc.metadata["chunk_index"]
+            merged.page_no = nc.metadata.get("page_no")
+            merged.section_path = nc.metadata.get("section_path")
+            merged.extra_metadata = nc.metadata
         # 插入新Chunk
         await chunk_repo.bulk_add(
             [

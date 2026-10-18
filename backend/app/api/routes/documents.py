@@ -176,7 +176,7 @@ async def get_document_chunk(
 ) -> DocumentChunkDetail:
     service = DocumentService(session)
     chunk = await service.get_chunk(document_id, chunk_id, permission_tags=_viewer_tags(user))
-    return await _to_document_read(document, service)
+    return DocumentChunkDetail.from_orm_chunk(chunk)
 
 
 @router.patch(
