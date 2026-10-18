@@ -49,6 +49,7 @@ interface UiMessage {
     verifyResult?: VerifyResultRead | null
     traceId?: string | null
     traceUrl?: string | null
+    cacheHit?: boolean
     refused?: boolean
     status?: AssistantStatus
     error?: string | null
@@ -65,6 +66,7 @@ function fromServerMessage(m: MessageRead): UiMessage {
         verifyResult: m.verify_result ?? null,
         traceId: m.trace_id ?? null,
         traceUrl: m.trace_url ?? null,
+        cacheHit: Boolean(m.cache_hit),
         refused: m.role === 'assistant' && m.content === REFUSAL_ANSWER,
         citations: m.citations ?? [],
         status: 'done',
@@ -228,7 +230,8 @@ export function ChatPage() {
                             updateAssistant((prev) => ({
                                 ...prev,
                                 traceId: event.traceId,
-                                traceUrl: event.traceUrl
+                                traceUrl: event.traceUrl,
+                                cacheHit: event.cacheHit,
                             }))
                             break
                         case 'query_route':
@@ -416,14 +419,27 @@ function AssistantHeader({message}: { message: UiMessage }) {
             />
         )
     }
-    if (message.verifyResult?.verified === true) {
-        return (
-            <div style={{marginBottom: 8}}>
-                <Tag color="green">已校验</Tag>
-            </div>
+    const tags: React.ReactNode[] = []
+    if (message.cacheHit) {
+        tags.push(
+            <Tag key="cache" color="cyan">
+                缓存命中
+            </Tag>
         )
     }
-    return null
+    if (message.verifyResult?.verified === true) {
+        tags.push(
+            <Tag key="verified" color="green">
+                已校验
+            </Tag>
+        )
+    }
+    if (tags.length === 0) return null
+    return (
+        <div style={{marginBottom: 8}}>
+            {tags}
+        </div>
+    )
 }
 
 // 消息二次重构时处理组件，包括引用链接跳转、样式修复

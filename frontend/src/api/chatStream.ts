@@ -8,6 +8,7 @@ export interface ChatStartEvent {
     type: 'start'
     traceId: string | null
     traceUrl: string | null
+    cacheHit: boolean
 }
 
 // 路由选择策略事件接口
@@ -112,7 +113,7 @@ export async function streamChat({
                 const data = msg.data ? JSON.parse(msg.data) : {}
                 switch (msg.event) {
                     case 'message_start':
-                        onEvent({type: 'start', traceId: data.trace_id ?? null, traceUrl: data.trace_url ?? null})
+                        onEvent({type: 'start', traceId: data.trace_id ?? null, traceUrl: data.trace_url ?? null, cacheHit: Boolean(data.cache_hit)})
                         break
                     case 'query_route':
                         onEvent({type: 'query_route', queryRoute: data as QueryRouteRead})

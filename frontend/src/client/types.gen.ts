@@ -944,6 +944,10 @@ export type MessageRead = {
      * Trace Url
      */
     trace_url?: string | null;
+    /**
+     * Cache Hit
+     */
+    cache_hit?: boolean;
 };
 
 /**
