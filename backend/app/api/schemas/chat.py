@@ -128,11 +128,13 @@ class MessageRead(BaseModel):
     verify_result: VerifyResultRead | None = None
     trace_id: str | None = None
     trace_url: str | None = None
+    cache_hit: bool = False
 
     @classmethod
     def from_orm(cls, message) -> "MessageRead":
         is_assistant = message.role == "assistant"
         trace_id = _parse_trace_id(message.extra_metadata) if is_assistant else None
+        cache_hit = _parse_cache_hit(message.extra_metadata) if is_assistant else False,
         return cls(
             id=message.id,
             role=message.role,
@@ -149,7 +151,8 @@ class MessageRead(BaseModel):
             verify_result=_parse_verify_result(message.extra_metadata)
             if is_assistant else None,
             trace_id=trace_id,
-            trace_url=build_trace_url(trace_id)
+            trace_url=build_trace_url(trace_id),
+            cache_hit=cache_hit,
         )
 
 """ 从Message extra metadata解析Agent Steps缺失返回空 """
@@ -202,3 +205,12 @@ def _parse_trace_id(metadata: dict | None) -> str | None:
         return None
     return raw
 
+def _parse_cache_hit(metadata: dict | None) -> bool:
+    """从 messages.extra_metadata 中提取 cache_hit 标记。
+
+    历史消息没有该字段，按 False 处理。
+    """
+    if not metadata:
+        return False
+    raw = metadata.get("cache_hit")
+    return bool(raw)
