@@ -22,7 +22,7 @@ export function buildDocumentFileUrl(
     const param = options.download ? '1': '0'
     const token = getAuthToken()
     const base = `/api/documents/${documentId}/file?download=${param}`
-    return token ? `${base}/&token=${encodeURIComponent(token)}` : base
+    return token ? `${base}&token=${encodeURIComponent(token)}` : base
 }
 
 export function canPreviewInline(mimeType: string): boolean {

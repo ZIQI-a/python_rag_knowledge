@@ -89,6 +89,20 @@ class SemanticCacheService:
         except Exception:
             logger.exception("Semantic cache save field, 跳过")
 
+    async def clear(self) -> None:
+        """清空该知识库的语义缓存，保留索引及其他 Redis 数据。"""
+        await self._cache.aclear()
+
 @lru_cache(maxsize=1)
 def get_semantic_cache() -> SemanticCacheService:
     return SemanticCacheService()
+
+
+async def invalidate_semantic_cache() -> None:
+    """文档变更后使旧答案失效；Redis 故障不回滚已完成的文档操作。"""
+    if not settings.semantic_cache_enabled:
+        return
+    try:
+        await get_semantic_cache().clear()
+    except Exception:
+        logger.exception("语义缓存清理失败，缓存命中仍需实时校验文档权限")

@@ -14,6 +14,7 @@ from app.core.observbility import get_current_trace_id, build_trace_url
 from app.db.models import Conversation, Message, AnswerCitation, User
 from app.db.repositories.citation_repo import AnswerCitationRepository
 from app.db.repositories.conversation_repo import ConversationRepository
+from app.db.repositories.document_repo import DocumentRepository
 from app.db.session import AsyncSessionLocal
 from app.ingestion import embedder
 from app.llm.answer_verifier import VerifyResult, get_answer_verifier
@@ -525,9 +526,29 @@ class ChatService:
         try:
             # 构造失败（Redis 不可用 / 连错实例）也要当成未命中，不能拖垮问答
             cached = await get_semantic_cache().lookup(embedding, permissions)
+            # 权限范围相同不代表文档权限未变化；返回缓存前以数据库现状为准。
+            if cached is not None and not await self._cache_citations_are_visible(
+                cached.citations, permissions
+            ):
+                cached = None
         except Exception:
+            cached = None
             logger.exception("semantic cache: unavailable, skip lookup")
         return cached, embedding
+
+    async def _cache_citations_are_visible(
+        self, citations: list[dict], permissions: list[str]
+    ) -> bool:
+        """拒绝无来源或损坏的缓存，所有引用文档都必须通过实时可见性检查。"""
+        if not isinstance(citations, list) or not citations:
+            return False
+        try:
+            document_ids = {UUID(str(c["document_id"])) for c in citations}
+        except (KeyError, TypeError, ValueError):
+            return False
+        return await DocumentRepository(self.session).all_ready_and_visible(
+            document_ids, permission_tags=permissions
+        )
 
     async def _try_cache_save(
             self, *,
@@ -542,6 +563,9 @@ class ChatService:
         与 _try_cache_lookup 对称：构造和写入的异常都在这里兜住。
         """
         try:
+            # 生成期间也可能撤权或删除文档，避免失效后重新写入旧权限答案。
+            if not await self._cache_citations_are_visible(citations, permissions):
+                return
             await get_semantic_cache().save(
                 question=question,
                 query_embedding=query_embedding,

@@ -30,6 +30,23 @@ class DocumentRepository:
             stmt = stmt.where(perm_where)
         return (await self.session.execute(stmt)).scalar_one_or_none()
 
+    # 缓存来源的实时可见性检查
+    async def all_ready_and_visible(
+        self, document_ids: set[UUID], *, permission_tags: list[str]
+    ) -> bool:
+        """批量确认缓存涉及的全部文档仍存在、就绪且对当前用户可见。"""
+        if not document_ids:
+            return False
+        stmt = select(func.count()).select_from(Document).where(
+            Document.id.in_(document_ids),
+            Document.status == DocumentStatus.READY,
+        )
+        perm_where = _permission_where(permission_tags)
+        if perm_where is not None:
+            stmt = stmt.where(perm_where)
+        count = int((await self.session.execute(stmt)).scalar_one())
+        return count == len(document_ids)
+
     # 根据hash获取文档
     async def get_by_hash(self, file_hash: str) -> Document | None:
         return (await self.session.execute(

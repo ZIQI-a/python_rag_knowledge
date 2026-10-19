@@ -20,6 +20,7 @@ from app.db.repositories.document_repo import DocumentRepository
 from app.storage.file_service import FileService, get_file_service
 from app.db.repositories.ingestion_task_repo import IngestionTaskRepository
 from app.ingestion.tasks import ingest_document_task, reindex_document_task
+from app.services.semantic_cache_service import invalidate_semantic_cache
 
 logger = get_logger(__name__)
 
@@ -181,6 +182,7 @@ class DocumentService:
         object_key = doc.cos_object_key
         await self.repo.delete(doc)
         await self.session.commit()
+        await invalidate_semantic_cache()
         # 再从COS存储中删除
         await self.file_service.delete(object_key)
         logger.info(f"文档删除成功: {document_id}")
@@ -245,6 +247,7 @@ class DocumentService:
             raise NotFoundError("文档不存在")
         doc.permission_tags = _normalize_tags(tags)
         await self.session.commit()
+        await invalidate_semantic_cache()
         await self.session.refresh(doc)
         return doc
 
@@ -295,6 +298,7 @@ class DocumentService:
         #  创建重建任务
         task = await self.task_repo.create(doc.id, IngestionTaskType.REINDEX)
         await self.session.commit()
+        await invalidate_semantic_cache()
         await self.session.refresh(doc)
 
         reindex_document_task.delay(str(doc.id), str(task.id))

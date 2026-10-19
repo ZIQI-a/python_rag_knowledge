@@ -11,6 +11,7 @@ from app.db.repositories.ingestion_task_repo import IngestionTaskRepository
 from app.db.session import AsyncSessionLocal
 from app.ingestion import embedder, parser, splitter
 from app.storage.file_service import get_file_service
+from app.services.semantic_cache_service import invalidate_semantic_cache
 
 
 logger = get_logger(__name__)
@@ -21,6 +22,9 @@ async def _set_status(document_id: UUID, status: DocumentStatus, * , error_messa
         repo = DocumentRepository(session)
         await repo.update_status(document_id, status, error_message=error_message)
         await session.commit()
+    # 新内容可检索后清除旧答案，覆盖首次入库与重建成功两条路径。
+    if status == DocumentStatus.READY:
+        await invalidate_semantic_cache()
 """ 任务状态管理的辅助方法 """
 
 async def _mark_task(task_id: UUID, *, running: bool = False) -> None:
