@@ -7,16 +7,15 @@ from uuid import UUID
 from langsmith import traceable
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.ingestion import embedder
 from app.core.config import settings
 from app.core.exceptions import NotFoundError
 from app.core.logging import get_logger
 from app.core.observbility import get_current_trace_id, build_trace_url
-from app.db.models import Conversation, Message, AnswerCitation
-from app.db.models import User
+from app.db.models import Conversation, Message, AnswerCitation, User
 from app.db.repositories.citation_repo import AnswerCitationRepository
 from app.db.repositories.conversation_repo import ConversationRepository
 from app.db.session import AsyncSessionLocal
+from app.ingestion import embedder
 from app.llm.answer_verifier import VerifyResult, get_answer_verifier
 from app.llm.prompts import REFUSAL_ANSWER
 from app.retrieval.vector_retriever import RetrievedChunk
@@ -28,6 +27,28 @@ from app.workflows.rag_state import RAGState
 
 # 导入日志模块
 logger = get_logger(__name__)
+
+
+# ======================================================================
+# 一、模块级序列化 helper（不依赖 session，SSE / metadata / 缓存共用）
+# ======================================================================
+
+# 混合检索调试元数据的展示
+def _build_retrieval_meta(chunk: RetrievedChunk) -> dict:
+    return {
+        "sources": list(chunk.sources),
+        "vector_rank": chunk.vector_rank,
+        "vector_score": round(chunk.vector_score, 4) if chunk.vector_score is not None else None,
+        "keyword_rank": chunk.keyword_rank,
+        "keyword_score": round(chunk.keyword_score, 4) if chunk.keyword_score is not None else None,
+        "rrf_score": (
+            # 保留6位本身很小，保留4位会丢精度
+            round(chunk.rrf_score, 6) if chunk.rrf_score is not None else None
+        ),
+        "rerank_score": (
+            round(chunk.rerank_score, 4) if chunk.rerank_score is not None else None
+        )
+    }
 
 
 # 将检索结果序列化成JSON
@@ -56,24 +77,6 @@ def _build_query_route_payload(state: RAGState) -> dict:
     }
 
 
-# 混合检索调试元数据的展示
-def _build_retrieval_meta(chunk: RetrievedChunk) -> dict:
-    return {
-        "sources": list(chunk.sources),
-        "vector_rank": chunk.vector_rank,
-        "vector_score": round(chunk.vector_score, 4) if chunk.vector_score is not None else None,
-        "keyword_rank": chunk.keyword_rank,
-        "keyword_score": round(chunk.keyword_score, 4) if chunk.keyword_score is not None else None,
-        "rrf_score": (
-            # 保留6位本身很小，保留4位会丢精度
-            round(chunk.rrf_score, 6) if chunk.rrf_score is not None else None
-        ),
-        "rerank_score": (
-            round(chunk.rerank_score, 4) if chunk.rerank_score is not None else None
-        )
-    }
-
-
 # 答案输出后，认证校验的核载构造; SSE/metadata共用核载
 def _build_verify_payload(
         result: VerifyResult, *, replacement_answer: str | None
@@ -88,15 +91,27 @@ def _build_verify_payload(
     return payload
 
 
-""" SSE和Meta共用的核载形式 """
-
-
+# SSE和Meta共用的 agent steps 荷载
 def _serialize_agent_steps(state: RAGState) -> list[dict]:
     return [dict(step) for step in state.get("agent_steps", [])]
 
 
-""" 评测专用 """
+def _safe_uuid(raw: str | None) -> UUID | None:
+    """缓存里 citation 的 document_id / chunk_id 是字符串，落库需要 UUID。
 
+    历史快照中可能为 None（原 chunk 已被删），按可空字段处理。
+    """
+    if not raw:
+        return None
+    try:
+        return UUID(str(raw))
+    except (TypeError, ValueError):
+        return None
+
+
+# ======================================================================
+# 二、对外返回结构
+# ======================================================================
 
 @dataclass(frozen=True)
 class EvaluationAnswer:
@@ -113,23 +128,32 @@ class EvaluationAnswer:
     error_message: str | None = None
     citations: list[dict] = field(default_factory=list)
 
+@dataclass(frozen=True)
+class MCPChatAnswer:
+    """MCP专用: `ask_knowledge_base` 工具的非流式问答结果。
 
-def _safe_uuid(raw: str | None) -> UUID | None:
-    """缓存里 citation 的 document_id / chunk_id 是字符串，落库需要 UUID。
-
-    历史快照中可能为 None（原 chunk 已被删），按可空字段处理。
+    与评测路径不同的是：MCP 调用方是真实用户（持 JWT），需要按其权限标签
+    过滤检索结果；与 stream_answer 不同的是：不创建 conversation、不写
+    user / assistant 消息，外部 Agent 自己管多轮上下文。
     """
-    if not raw:
-        return None
-    try:
-        return UUID(str(raw))
-    except (TypeError, ValueError):
-        return None
 
+    answer: str
+    refused: bool
+    citations: list[dict]
+    trace_id: str | None
+
+
+# ======================================================================
+# 三、服务本体
+# ======================================================================
 
 class ChatService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
+
+    # ------------------------------------------------------------------
+    # 3.1 会话管理
+    # ------------------------------------------------------------------
 
     # 创建新对话
     async def create_conversation(self, title: str = "新会话", user_id: UUID | None = None) -> Conversation:
@@ -170,8 +194,11 @@ class ChatService:
             raise NotFoundError("会话不存在")
         await self.session.commit()
 
-    """ 流式输出回答，主要方案 """
+    # ------------------------------------------------------------------
+    # 3.2 主链路：流式问答
+    # ------------------------------------------------------------------
 
+    # 流式输出回答，主要方案
     @traceable(name="ChatService.stream_answer", run_type="chain")
     async def stream_answer(
             self, conversation_id: UUID, question: str, *, current_user: User) -> AsyncIterator[dict]:
@@ -316,8 +343,11 @@ class ChatService:
                     }
                 }
 
-    """ 写入用户消息(流式开始前 """
+    # ------------------------------------------------------------------
+    # 3.3 落库（流式路径）
+    # ------------------------------------------------------------------
 
+    # 写入用户消息(流式开始前
     async def _persist_user_message(
             self, state: RAGState, session: AsyncSession
     ) -> None:
@@ -334,8 +364,7 @@ class ChatService:
         await session.commit()
         state["user_message_id"] = user_msg.id
 
-    """ 写入AI消息(流式结束后 """
-
+    # 写入AI消息(流式结束后
     async def _persist_assistant_message(
             self, state: RAGState, session: AsyncSession, *, verify_result: VerifyResult | None
     ) -> None:
@@ -382,132 +411,9 @@ class ChatService:
         await session.commit()
         state["assistant_message_id"] = assistant_msg.id
 
-    """ 跑一遍完整RAG流程，拿非流式结果用于评测 """
-
-    @traceable(name="ChatService.answer_for_evaluation", run_type="chain")
-    async def answer_for_evaluation(self, question: str) -> EvaluationAnswer:
-        started_at = time.perf_counter()
-        trace_id = get_current_trace_id()
-        state: RAGState = {
-            "conversation_id": UUID(int=0),
-            "question": question,
-            "chat_history": [],
-            "permissions": [WILDCARD_PERMISSION_TAG],
-            "trace_id": trace_id
-        }
-
-        try:
-            final_state = await get_rag_graph().ainvoke(state)
-            state.update(final_state)
-
-            verify_result: VerifyResult | None = None
-            first_token_latency_ms: int | None = None
-
-            if state.get("refused"):
-                answer = state["answer"]
-            else:
-                parts: list[str] = []
-                async for delta in stream_generate(state):
-                    if first_token_latency_ms is None:
-                        first_token_latency_ms = int(
-                            (time.perf_counter() - started_at) * 1000
-                        )
-                    parts.append(delta)
-                answer = "".join(parts)
-                state["answer"] = answer
-                # 进入认证，只有不拒绝的情况下才认证
-                if settings.verify_answer_enabled:
-                    verify_result = await get_answer_verifier().verify(
-                        question=question,
-                        answer=answer,
-                        chunks=list(state.get("retrieved_chunks", []))
-                    )
-                    if not verify_result.verified:
-                        answer = REFUSAL_ANSWER
-                        state["answer"] = answer
-                        state["refused"] = True
-
-            chunks = list(state.get("retrieved_chunks", []))
-            refused = bool(state.get("refused"))
-            citations = (
-                []
-                if refused else [_serialize_citation(c, ordinal=i) for i, c in enumerate(chunks, 1)]
-            )
-
-            return EvaluationAnswer(
-                answer=answer,
-                refused=refused,
-                chunks=chunks,
-                query_route=_build_query_route_payload(state),
-                agent_steps=_serialize_agent_steps(state),
-                verify_result=verify_result,
-                trace_id=trace_id,
-                latency_ms=int((time.perf_counter() - started_at) * 1000),
-                first_token_latency_ms=first_token_latency_ms,
-                citations=citations
-            )
-
-        except Exception as e:
-            logger.exception("评测答案失败: question=%r", question)
-            return EvaluationAnswer(
-                answer="",
-                refused=False,
-                chunks=[],
-                query_route=_build_query_route_payload(state),
-                agent_steps=_serialize_agent_steps(state),
-                verify_result=None,
-                trace_id=trace_id,
-                latency_ms=int((time.perf_counter() - started_at) * 1000),
-                first_token_latency_ms=None,
-                error_message=str(e).strip() or e.__class__.__name__
-            )
-
-    async def _try_cache_lookup(
-            self, question: str, permissions: list[str]
-    ) -> tuple[CachedAnswer | None, list[float] | None]:
-        """查询语义缓存。
-
-        返回 (命中项, query_embedding)：
-        - 关掉缓存或 embedding 失败时全部返回 (None, None)，主链路兜底
-        - 未命中时返回 (None, embedding)，外层在 save 阶段可以直接复用
-        """
-        if not settings.semantic_cache_enabled:
-            return None, None
-        try:
-            embedding = await embedder.get_embeddings().aembed_query(question)
-        except Exception:
-            logger.exception("semantic cache: embedding failed, skip lookup")
-            return None, None
-        cached: CachedAnswer | None = None
-        try:
-            # 构造失败（Redis 不可用 / 连错实例）也要当成未命中，不能拖垮问答
-            cached = await get_semantic_cache().lookup(embedding, permissions)
-        except Exception:
-            logger.exception("semantic cache: unavailable, skip lookup")
-        return cached, embedding
-
-    async def _try_cache_save(
-            self, *,
-            question: str,
-            query_embedding: list[float],
-            answer: str,
-            citations: list[dict],
-            permissions: list[str],
-    ) -> None:
-        """写缓存；缓存不可用只记日志，不影响已经把答案推给用户的主链路。
-
-        与 _try_cache_lookup 对称：构造和写入的异常都在这里兜住。
-        """
-        try:
-            await get_semantic_cache().save(
-                question=question,
-                query_embedding=query_embedding,
-                answer=answer,
-                citations=citations,
-                permission_scope=permissions,
-            )
-        except Exception:
-            logger.exception("semantic cache: unavailable, skip save")
+    # ------------------------------------------------------------------
+    # 3.4 缓存命中分支（stream_answer 命中后走这里）
+    # ------------------------------------------------------------------
 
     async def _stream_cache_hit(
             self,
@@ -595,3 +501,189 @@ class ChatService:
         await session.commit()
         state["assistant_message_id"] = assistant_msg.id
 
+    # ------------------------------------------------------------------
+    # 3.5 语义缓存读写（失败一律降级，不影响主链路）
+    # ------------------------------------------------------------------
+
+    async def _try_cache_lookup(
+            self, question: str, permissions: list[str]
+    ) -> tuple[CachedAnswer | None, list[float] | None]:
+        """查询语义缓存。
+
+        返回 (命中项, query_embedding)：
+        - 关掉缓存或 embedding 失败时全部返回 (None, None)，主链路兜底
+        - 未命中时返回 (None, embedding)，外层在 save 阶段可以直接复用
+        """
+        if not settings.semantic_cache_enabled:
+            return None, None
+        try:
+            embedding = await embedder.get_embeddings().aembed_query(question)
+        except Exception:
+            logger.exception("semantic cache: embedding failed, skip lookup")
+            return None, None
+        cached: CachedAnswer | None = None
+        try:
+            # 构造失败（Redis 不可用 / 连错实例）也要当成未命中，不能拖垮问答
+            cached = await get_semantic_cache().lookup(embedding, permissions)
+        except Exception:
+            logger.exception("semantic cache: unavailable, skip lookup")
+        return cached, embedding
+
+    async def _try_cache_save(
+            self, *,
+            question: str,
+            query_embedding: list[float],
+            answer: str,
+            citations: list[dict],
+            permissions: list[str],
+    ) -> None:
+        """写缓存；缓存不可用只记日志，不影响已经把答案推给用户的主链路。
+
+        与 _try_cache_lookup 对称：构造和写入的异常都在这里兜住。
+        """
+        try:
+            await get_semantic_cache().save(
+                question=question,
+                query_embedding=query_embedding,
+                answer=answer,
+                citations=citations,
+                permission_scope=permissions,
+            )
+        except Exception:
+            logger.exception("semantic cache: unavailable, skip save")
+
+    # ------------------------------------------------------------------
+    # 3.6 非流式入口（评测 / MCP）：跑一次图，收集完整答案
+    # ------------------------------------------------------------------
+
+    # 跑一遍完整RAG流程，拿非流式结果用于评测
+    @traceable(name="ChatService.answer_for_evaluation", run_type="chain")
+    async def answer_for_evaluation(self, question: str) -> EvaluationAnswer:
+        started_at = time.perf_counter()
+        trace_id = get_current_trace_id()
+        state: RAGState = {
+            "conversation_id": UUID(int=0),
+            "question": question,
+            "chat_history": [],
+            "permissions": [WILDCARD_PERMISSION_TAG],
+            "trace_id": trace_id
+        }
+
+        try:
+            final_state = await get_rag_graph().ainvoke(state)
+            state.update(final_state)
+
+            verify_result: VerifyResult | None = None
+            first_token_latency_ms: int | None = None
+
+            if state.get("refused"):
+                answer = state["answer"]
+            else:
+                parts: list[str] = []
+                async for delta in stream_generate(state):
+                    if first_token_latency_ms is None:
+                        first_token_latency_ms = int(
+                            (time.perf_counter() - started_at) * 1000
+                        )
+                    parts.append(delta)
+                answer = "".join(parts)
+                state["answer"] = answer
+                # 进入认证，只有不拒绝的情况下才认证
+                if settings.verify_answer_enabled:
+                    verify_result = await get_answer_verifier().verify(
+                        question=question,
+                        answer=answer,
+                        chunks=list(state.get("retrieved_chunks", []))
+                    )
+                    if not verify_result.verified:
+                        answer = REFUSAL_ANSWER
+                        state["answer"] = answer
+                        state["refused"] = True
+
+            chunks = list(state.get("retrieved_chunks", []))
+            refused = bool(state.get("refused"))
+            citations = (
+                []
+                if refused else [_serialize_citation(c, ordinal=i) for i, c in enumerate(chunks, 1)]
+            )
+
+            return EvaluationAnswer(
+                answer=answer,
+                refused=refused,
+                chunks=chunks,
+                query_route=_build_query_route_payload(state),
+                agent_steps=_serialize_agent_steps(state),
+                verify_result=verify_result,
+                trace_id=trace_id,
+                latency_ms=int((time.perf_counter() - started_at) * 1000),
+                first_token_latency_ms=first_token_latency_ms,
+                citations=citations
+            )
+
+        except Exception as e:
+            logger.exception("评测答案失败: question=%r", question)
+            return EvaluationAnswer(
+                answer="",
+                refused=False,
+                chunks=[],
+                query_route=_build_query_route_payload(state),
+                agent_steps=_serialize_agent_steps(state),
+                verify_result=None,
+                trace_id=trace_id,
+                latency_ms=int((time.perf_counter() - started_at) * 1000),
+                first_token_latency_ms=None,
+                error_message=str(e).strip() or e.__class__.__name__
+            )
+
+    # MCP Server 调用跑 RAG 流程的入口，拿非流式结果
+    @traceable(name="ChatService.answer_for_mcp", run_type="chain")
+    async def answer_for_mcp(
+            self, question: str, *, current_user: User
+    ) -> MCPChatAnswer:
+        """ MCP Server调用跑RAG流程的入口。并拿到结果 """
+        permissions = compute_user_permission_tags(current_user)
+        trace_id = get_current_trace_id()
+        state: RAGState = {
+            "conversation_id": UUID(int=0),
+            "question": question,
+            "chat_history": [],
+            "permissions": permissions,
+            "trace_id": trace_id
+        }
+        # 运行RAG流程
+        final_state = await get_rag_graph().ainvoke(state)
+        state.update(final_state)
+
+        if state.get("refused"):
+            answer = state["answer"]
+        else:
+            parts: list[str] = []
+            async for delta in stream_generate(state):
+                parts.append(delta)
+            answer = "".join(parts)
+            state["answer"] = answer
+            # 进入认证，只有不拒绝且认证开启的情况下才认证
+            if settings.verify_answer_enabled:
+                verify_result = await get_answer_verifier().verify(
+                    question=question,
+                    answer=answer,
+                    chunks=list(state.get("retrieved_chunks", []))
+                )
+                if not verify_result.verified:
+                    answer = REFUSAL_ANSWER
+                    state["answer"] = answer
+                    state["refused"] = True
+
+        refused = bool(state.get("refused"))
+        citations = (
+            [] if refused else [
+                _serialize_citation(c, ordinal=i)
+                for i, c in enumerate(state.get("retrieved_chunks", []), start=1)
+            ]
+        )
+        return MCPChatAnswer(
+            answer=answer,
+            refused=refused,
+            citations=citations,
+            trace_id=trace_id,
+        )
