@@ -1,0 +1,112 @@
+# 在 1Panel「容器 → 编排 → 创建」粘贴本文件；源码统一放在 /opt/rag-kb。
+# 数据库和 Redis 不开放宿主机端口；唯一新增监听为 127.0.0.1:18100。
+name: rag-knowledge
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-backend: &backend
+  # 只声明 build，避免 1Panel 创建时预先拉取不存在的自定义镜像。
+  # Compose 会按项目名和服务名自动命名镜像。
+  build:
+    context: /opt/rag-kb
+    dockerfile: deploy/backend.Dockerfile
+  env_file:
+    - /opt/rag-kb/.env
+  environment:
+    OMP_NUM_THREADS: "2"
+    MKL_NUM_THREADS: "2"
+    OPENBLAS_NUM_THREADS: "2"
+    # 使用常规 HTTPS 下载公开模型，兼容服务器的 Hugging Face 访问环境。
+    HF_HUB_DISABLE_XET: "1"
+  volumes:
+    # 模型下载一次后复用；容器重建不会删除缓存。
+    - model_cache:/home/rag/.cache
+  logging: *logging
+
+services:
+  postgres:
+    build:
+      context: /opt/rag-kb
+      dockerfile: postgres.Dockerfile
+    container_name: rag-knowledge-postgres
+    restart: unless-stopped
+    env_file:
+      - /opt/rag-kb/.env
+    command: ["postgres", "-c", "shared_buffers=64MB", "-c", "max_connections=40", "-c", "work_mem=4MB"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rag -d rag_kb"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    logging: *logging
+
+  redis:
+    image: redis/redis-stack-server:7.4.0-v0
+    container_name: rag-knowledge-redis
+    restart: unless-stopped
+    environment:
+      # 队列、结果和缓存共用 Redis 时，不用淘汰策略清除任务数据。
+      REDIS_ARGS: "--appendonly yes"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    logging: *logging
+
+  init:
+    <<: *backend
+    container_name: rag-knowledge-init
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # 只预热当前默认解析所需模型；公式、代码及图片增强目前未启用。
+    # 初始化成功后才启动 API / worker；退出码 0 表示这项工作已经完成。
+    command: ["/bin/sh", "-ec", "python -m alembic upgrade head\ndocling-tools models download layout tableformer rapidocr"]
+
+  api:
+    <<: *backend
+    container_name: rag-knowledge-api
+    restart: unless-stopped
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:18100:8000"
+    # OpenResty 经 Docker 网关转发；仅本机可连接发布端口，代理覆写转发头。
+    command: ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--proxy-headers", "--forwarded-allow-ips", "*", "--no-access-log"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=5)"]
+      interval: 15s
+      timeout: 10s
+      start_period: 90s
+      retries: 10
+
+  worker:
+    <<: *backend
+    container_name: rag-knowledge-worker
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # 个人使用串行入库，避免多个 PDF 同时解析导致内存峰值叠加。
+    command: ["python", "-m", "celery", "-A", "app.celery_app", "worker", "--loglevel=info", "--pool=solo", "--concurrency=1"]
+    stop_grace_period: 10m
+
+volumes:
+  pgdata:
+  redisdata:
+  model_cache:

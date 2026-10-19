@@ -1,0 +1,16 @@
+# 构建仅需要后端源码与部署文件，防止本机依赖和凭据进入构建上下文。
+.git
+.idea
+.workbuddy
+**/.venv
+**/node_modules
+**/__pycache__
+**/*.pyc
+**/.env
+**/.env.*
+!**/.env.example
+**/*.log
+frontend
+docs
+*.md
+!backend/README.md

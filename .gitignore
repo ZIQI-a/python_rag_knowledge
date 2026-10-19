@@ -30,3 +30,4 @@ Thumbs.db
 
 # ===== WorkBuddy 对话日志与本地工作区数据 =====
 .workbuddy/
+rag-kb/
