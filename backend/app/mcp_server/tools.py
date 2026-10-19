@@ -1,5 +1,6 @@
 import base64
 import binascii
+import io
 from typing import Literal
 
 from mcp.server.fastmcp import FastMCP, Context
@@ -221,10 +222,11 @@ class _Base64UploadFile:
     def __init__(self, *, filename: str, content: bytes, content_type: str | None) -> None:
         self.filename = filename
         self.content_type = content_type or ""
-        self._content = content
+        self._stream = io.BytesIO(content)
 
-    async def read(self) -> bytes:
-        return self._content
+    async def read(self, size: int = -1) -> bytes:
+        """兼容 UploadFile 的限长读取，并维护流位置以支持连续读取。"""
+        return self._stream.read(size)
 
 
 # 权限标签查询(指定用户的)

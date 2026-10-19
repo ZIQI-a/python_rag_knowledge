@@ -1,56 +1,42 @@
 # frontend — 问津前端
 
-React 19 + TypeScript + Vite + Ant Design 6 + React Router 7 + TanStack Query。已实现文档管理、知识库对话、查询/检索调试、Trace 展示、评测分析、登录及用户/角色管理。项目总览见 [根目录 README](../README.md)，开发约束见 [AGENTS.md](AGENTS.md)。
+React 19、TypeScript、Vite、Ant Design 6、React Router 7 与 TanStack Query 构建的知识库界面。
 
-## 页面与功能
+## 页面
 
-| 路由 | 页面 | 功能 |
-| --- | --- | --- |
-| `/login` | `LoginPage.tsx` | 登录；独立于业务布局 |
-| `/` | `HomePage.tsx` | 登录后首页与功能入口 |
-| `/documents` | `DocumentsPage.tsx` | 按权限查看文档；管理员上传、重试、删除及维护权限标签，展示版本/任务状态 |
-| `/documents/:id` | `DocumentDetailPage.tsx` | 原文预览/下载、切片查看、任务进度与管理员上传新版本重建 |
-| `/chat` | `ChatPage.tsx` | 会话侧栏、历史消息、SSE 流式回答、引用、查询路由、Agent 步骤、答案校验及 Trace 信息 |
-| `/users` | `UserPage.tsx` | 管理员用户维护、状态/密码与角色分配 |
-| `/roles` | `RolesPage.tsx` | 管理员角色与权限标签维护 |
-| `/evaluation` | `EvaluationListPage.tsx` | 新建/删除评测任务、任务列表、进度与汇总指标 |
-| `/evaluation/runs/:id` | `EvaluationDetailPage.tsx` | 指标、Bad Case 筛选、样本详情、引用/追踪信息、人工归因与备注 |
+| 路由 | 功能 |
+| --- | --- |
+| `/login` | 登录 |
+| `/` | 首页 |
+| `/documents`、`/documents/:id` | 文档管理、预览/下载、切片、版本与任务进度 |
+| `/chat` | 会话、流式问答、引用、查询策略、Agent 步骤与 Trace |
+| `/evaluation`、`/evaluation/runs/:id` | 评测任务、指标、样本与 Bad Case 归因 |
+| `/users`、`/roles` | 用户与角色管理 |
 
-除 `/login` 外的业务页需要登录，评测、用户和角色页面还需管理员身份；`RequireAuth` / `RequireAdmin` 负责前端守卫，实际权限以服务端校验为准。顶栏用户菜单支持退出登录。
+业务页需要登录，评测、用户及角色页面需要管理员。文档写操作也受管理员权限控制。
 
-评测任务列表及任务详情在 `running` 状态下每 5 秒轮询。评测集与后端配置、指标定义见 [后端评测说明](../backend/README.md#评测分析)。
+## 目录
+
+- `src/pages/`：业务页面。
+- `src/routes/`、`src/layouts/`：路由、布局及菜单。
+- `src/components/`：引用、追踪、评测、会话与鉴权组件。
+- `src/api/`：请求封装、SSE、查询键及业务数据请求。
+- `src/client/`：OpenAPI 生成的类型和 SDK。
+- `src/stores/`、`src/utils/`：认证状态与公共工具。
+- `src/main.tsx`：中文配置、antd App、QueryClient 与路由挂载。
 
 ## 开发
 
-在 `frontend/` 执行，后端使用 `8000` 端口：
+在 `frontend/` 执行：
 
 ```bash
 npm ci
-npm run dev       # 默认 localhost:5173；/api 代理到 localhost:8000
-npm run lint      # ESLint 检查
-npm run build     # TypeScript 检查与生产构建
-npm run preview   # 预览构建产物；不等同于生产部署
-```
-
-新增依赖使用 `npm install <包名>` 并同步 `package-lock.json`。开发代理在 `vite.config.ts` 配置；生产环境需自行将 `/api` 转发到后端，Vite 开发代理不会进入构建产物。
-
-## API 与目录
-
-- `src/client/`：OpenAPI 生成的类型及 SDK，禁止手工修改。
-- `src/api/client.ts`：生成客户端的基础配置与错误处理；请求使用同源 `/api`。
-- `src/api/chatStream.ts`：携带 Bearer 令牌的 SSE 请求，解析路由、Agent、引用、校验、Trace 与缓存命中字段，处理登录失效。
-- `src/api/auth.ts`、`users.ts`、`roles.ts`：登录、用户与角色请求。
-- `src/stores/authStore.ts`：访问令牌和用户信息的本地持久化；退出登录清理认证状态。
-- `src/api/evaluation.ts`：评测数据集、任务、样本及归因操作的 TanStack Query 封装。
-- `src/api/queryKeys.ts`：会话与评测查询键。
-- `src/components/`：会话侧栏、引用、查询路由、Agent 步骤、Trace、评测指标与归因选择组件。
-- `src/routes/index.tsx`：全部页面路由；`src/layouts/BasicLayout.tsx` 提供布局、权限菜单及用户菜单，登录页不使用该布局。
-- `src/main.tsx`：中文 `ConfigProvider`、antd `App` 上下文、QueryClient 和路由挂载。
-
-后端接口变化后，先启动后端，再执行：
-
-```bash
+npm run dev
+npm run lint
+npm run build
 npm run gen-api
 ```
 
-`openapi-ts.config.ts` 当前从 `http://localhost:8000/openapi.json` 生成客户端，与开发代理端口一致。后端端口变更时需同时调整这两个配置。
+开发地址为 `http://localhost:5173`；`vite.config.ts` 的 `/api` 代理与 `openapi-ts.config.ts` 均使用后端 `8000` 端口。生成 API 客户端前需启动后端，禁止手工修改 `src/client/`。生产环境需将 `/api` 转发到后端。
+
+项目概览见 [根目录 README](../README.md)，开发约束见 [AGENTS.md](AGENTS.md)。
