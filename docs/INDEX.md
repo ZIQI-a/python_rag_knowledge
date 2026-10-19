@@ -31,7 +31,7 @@
 | 文档管理与统计 | [document_service.py](../backend/app/services/document_service.py) |
 | COS 文件服务 | [storage/](../backend/app/storage/) |
 | 解析、切分、向量化与增量入库 | [ingestion/](../backend/app/ingestion/) |
-| Celery | [celery_app.py](../backend/app/celery_app.py)、[tasks.py](../backend/app/ingestion/tasks.py) |
+| Celery、worker 事件循环与资源生命周期 | [celery_app.py](../backend/app/celery_app.py)、[tasks.py](../backend/app/ingestion/tasks.py) |
 | 向量、关键词与 RRF 检索 | [retrieval/](../backend/app/retrieval/) |
 | 模型、提示词、查询策略、Agent、精排与校验 | [llm/](../backend/app/llm/) |
 | LangGraph 图、状态与节点 | [workflows/](../backend/app/workflows/) |

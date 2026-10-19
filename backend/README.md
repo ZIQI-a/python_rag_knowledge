@@ -58,6 +58,8 @@ uv run uvicorn app.main:app --reload --port 8000
 uv run celery -A app.celery_app worker -l info
 ```
 
+默认 prefork worker 的每个子进程独立复用事件循环与异步连接；正常退出时先释放数据库、Embedding 和语义缓存连接，再关闭循环。单进程运行可使用 `--pool=solo`。
+
 ## 接口与核心流程
 
 | 入口 | 用途 |

@@ -1,7 +1,6 @@
 """Celery 任务定义。
 
-worker 是同步进程，业务流程都是 async，所以任务函数内部用 `asyncio.run`
-起独立 event loop 跑 pipeline。
+worker 的同步入口通过进程内复用的事件循环执行异步 pipeline。
 """
 from uuid import UUID
 

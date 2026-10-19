@@ -1,8 +1,8 @@
 """ 将整个流程串起来 """
-import asyncio
 from uuid import UUID
 from langchain_core.documents import Document as LangChainDocument
 
+from app.celery_app import run_async_task
 from app.core.logging import get_logger
 from app.db.models import DocumentChunk, DocumentStatus
 from app.db.repositories.chunk_repo import DocumentChunkRepository
@@ -278,11 +278,11 @@ async def _run_reindex(document_id: UUID, task_id: UUID) -> None:
 """ 对外给的首次入库和增量入库的worker同步接口 """
 def run_ingest_sync(document_id: UUID, task_id: UUID) -> None:
     """ 首次入库的同步接口 """
-    asyncio.run(_run_ingest(document_id, task_id))
+    run_async_task(_run_ingest(document_id, task_id))
 
 def run_reindex_sync(document_id: UUID, task_id: UUID) -> None:
     """ 增量入库的同步接口 """
-    asyncio.run(_run_reindex(document_id, task_id))
+    run_async_task(_run_reindex(document_id, task_id))
 
 # 整体执行的流程连接
 async def ingest_document(document_id: UUID) -> None:

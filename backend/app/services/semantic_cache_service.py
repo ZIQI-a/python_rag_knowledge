@@ -93,9 +93,23 @@ class SemanticCacheService:
         """清空该知识库的语义缓存，保留索引及其他 Redis 数据。"""
         await self._cache.aclear()
 
+    async def close(self) -> None:
+        """释放缓存客户端连接，保留 Redis 中的数据和索引。"""
+        await self._cache.adisconnect()
+
 @lru_cache(maxsize=1)
 def get_semantic_cache() -> SemanticCacheService:
     return SemanticCacheService()
+
+
+async def close_semantic_cache() -> None:
+    """仅关闭已有实例，避免 worker 退出时建立新的 Redis 连接。"""
+    if not get_semantic_cache.cache_info().currsize:
+        return
+    try:
+        await get_semantic_cache().close()
+    finally:
+        get_semantic_cache.cache_clear()
 
 
 async def invalidate_semantic_cache() -> None:
