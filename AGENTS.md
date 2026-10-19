@@ -11,7 +11,7 @@ AI 代理在本仓库工作前必读。本文件是**总索引**：全局约束�
 
 ## 项目定位
 
-AI RAG 知识库「问津」：`backend/` 为 FastAPI 异步后端，`frontend/` 为 React + Ant Design 前端。截至 2026-10-16，已实现文档管理与解析/切分/向量化入库、知识库流式对话、查询路由与混合检索、LangGraph Agent 循环、精排与答案校验、LangSmith 追踪，以及评测分析和 Bad Case 人工归因。评测样本已提供，原始知识文档需自行准备；代码实现进度不等同于外部服务联调结果。
+AI RAG 知识库「问津」：`backend/` 为 FastAPI 异步后端，`frontend/` 为 React + Ant Design 前端。截至 2026-10-19，已实现文档管理与解析/切分/向量化入库、知识库流式对话、查询路由与混合检索、LangGraph Agent 循环、精排与答案校验、LangSmith 追踪，评测分析和 Bad Case 人工归因，以及 JWT 登录/角色权限、Redis 语义缓存/限流、Celery 入库/增量重建和 MCP 工具。评测样本已提供，原始知识文档需自行准备；代码实现进度不等同于外部服务联调结果，当前审查发现的待修复项见根目录 README。
 
 ## 分层约束索引
 
@@ -33,7 +33,7 @@ AI RAG 知识库「问津」：`backend/` 为 FastAPI 异步后端，`frontend/`
 backend/            # FastAPI 后端（约束见 backend/AGENTS.md）
 frontend/           # React 前端（约束见 frontend/AGENTS.md）
 docs/               # 项目文档索引（docs/INDEX.md）
-docker-compose.yml  # 本地 PostgreSQL 16 + pgvector + zhparser
+docker-compose.yml  # PostgreSQL 16 + pgvector + zhparser，以及 Redis Stack
 postgres.Dockerfile # 自定义数据库镜像，编译中文分词扩展
 .env.example        # 环境变量模板（真实值写入 .env，不入库）
 ```

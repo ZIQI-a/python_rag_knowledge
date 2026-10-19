@@ -18,7 +18,7 @@ npm run gen-api    # 从后端 OpenAPI 生成 API 客户端；当前后端、生
 
 ## 前端约定
 
-1. **布局与路由**：所有页面挂在 `src/layouts/BasicLayout.tsx` 的 `Outlet` 下；新增页面 = 在 `src/pages/` 建组件 + 在 `src/routes/index.tsx` 的 children 加路由 + 在 BasicLayout 菜单加条目。
+1. **布局与路由**：登录页 `/login` 独立；其他业务页面经 `RequireAuth` 挂在 `src/layouts/BasicLayout.tsx` 的 `Outlet` 下，管理员页面再包 `RequireAdmin`；新增业务页面 = 在 `src/pages/` 建组件 + 在 `src/routes/index.tsx` 的 children 加路由 + 在 BasicLayout 菜单加条目。
 2. **UI 组件**：统一使用 antd 组件与 `@ant-design/icons`，不引入第二个组件库；全局中文语言包已在 `main.tsx` 的 `ConfigProvider` 配置。
 3. **全局样式**：`src/index.css` 仅保留全局重置，页面样式优先用 antd 组件属性与内联 style，不新增全局 CSS。
 4. **完成标准**：改动须通过 `npm run lint` 与 `npm run build` 验证。
@@ -41,3 +41,8 @@ npm run gen-api    # 从后端 OpenAPI 生成 API 客户端；当前后端、生
 | 评测列表与详情 | `src/pages/EvaluationListPage.tsx`、`EvaluationDetailPage.tsx` |
 | 评测数据请求与查询键 | `src/api/evaluation.ts`、`src/api/queryKeys.ts` |
 | 评测指标与归因 | `src/components/MetricsCard.tsx`、`BadCaseCategorySelect.tsx` + `src/utils/badCaseCategory.ts` |
+| 登录、用户与角色页面 | `src/pages/LoginPage.tsx`、`UserPage.tsx`、`RolesPage.tsx` |
+| 认证状态与路由守卫 | `src/stores/authStore.ts` + `src/components/RequireAuth.tsx`、`RequireAdmin.tsx` |
+| 登录/用户/角色 API | `src/api/auth.ts`、`users.ts`、`roles.ts` |
+| 顶栏用户菜单 | `src/components/UserMenu.tsx` |
+| 原文链接与预览类型 | `src/utils/documentFile.ts` |

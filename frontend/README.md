@@ -1,17 +1,22 @@
 # frontend — 问津前端
 
-React 19 + TypeScript + Vite + Ant Design 6 + React Router 7 + TanStack Query。已实现文档管理、知识库对话、查询/检索调试、Trace 展示和评测分析。项目总览见 [根目录 README](../README.md)，开发约束见 [AGENTS.md](AGENTS.md)。
+React 19 + TypeScript + Vite + Ant Design 6 + React Router 7 + TanStack Query。已实现文档管理、知识库对话、查询/检索调试、Trace 展示、评测分析、登录及用户/角色管理。项目总览见 [根目录 README](../README.md)，开发约束见 [AGENTS.md](AGENTS.md)。
 
 ## 页面与功能
 
 | 路由 | 页面 | 功能 |
 | --- | --- | --- |
-| `/` | `HomePage.tsx` | 首页与功能入口 |
-| `/documents` | `DocumentsPage.tsx` | 上传、分页/状态筛选、状态刷新、重试与删除 |
-| `/documents/:id` | `DocumentDetailPage.tsx` | 原文预览/下载、切片列表与内容查看 |
+| `/login` | `LoginPage.tsx` | 登录；独立于业务布局 |
+| `/` | `HomePage.tsx` | 登录后首页与功能入口 |
+| `/documents` | `DocumentsPage.tsx` | 按权限查看文档；管理员上传、重试、删除及维护权限标签，展示版本/任务状态 |
+| `/documents/:id` | `DocumentDetailPage.tsx` | 原文预览/下载、切片查看、任务进度与管理员上传新版本重建 |
 | `/chat` | `ChatPage.tsx` | 会话侧栏、历史消息、SSE 流式回答、引用、查询路由、Agent 步骤、答案校验及 Trace 信息 |
+| `/users` | `UserPage.tsx` | 管理员用户维护、状态/密码与角色分配 |
+| `/roles` | `RolesPage.tsx` | 管理员角色与权限标签维护 |
 | `/evaluation` | `EvaluationListPage.tsx` | 新建/删除评测任务、任务列表、进度与汇总指标 |
 | `/evaluation/runs/:id` | `EvaluationDetailPage.tsx` | 指标、Bad Case 筛选、样本详情、引用/追踪信息、人工归因与备注 |
+
+除 `/login` 外的业务页需要登录，评测、用户和角色页面还需管理员身份；`RequireAuth` / `RequireAdmin` 负责前端守卫，实际权限以服务端校验为准。顶栏用户菜单支持退出登录。
 
 评测任务列表及任务详情在 `running` 状态下每 5 秒轮询。评测集与后端配置、指标定义见 [后端评测说明](../backend/README.md#评测分析)。
 
@@ -33,11 +38,13 @@ npm run preview   # 预览构建产物；不等同于生产部署
 
 - `src/client/`：OpenAPI 生成的类型及 SDK，禁止手工修改。
 - `src/api/client.ts`：生成客户端的基础配置与错误处理；请求使用同源 `/api`。
-- `src/api/chatStream.ts`：SSE 事件解析，包括路由、Agent 步骤、引用、校验结果和 Trace 字段。
+- `src/api/chatStream.ts`：携带 Bearer 令牌的 SSE 请求，解析路由、Agent、引用、校验、Trace 与缓存命中字段，处理登录失效。
+- `src/api/auth.ts`、`users.ts`、`roles.ts`：登录、用户与角色请求。
+- `src/stores/authStore.ts`：访问令牌和用户信息的本地持久化；退出登录清理认证状态。
 - `src/api/evaluation.ts`：评测数据集、任务、样本及归因操作的 TanStack Query 封装。
 - `src/api/queryKeys.ts`：会话与评测查询键。
 - `src/components/`：会话侧栏、引用、查询路由、Agent 步骤、Trace、评测指标与归因选择组件。
-- `src/routes/index.tsx`：全部页面路由；`src/layouts/BasicLayout.tsx` 提供布局与菜单。
+- `src/routes/index.tsx`：全部页面路由；`src/layouts/BasicLayout.tsx` 提供布局、权限菜单及用户菜单，登录页不使用该布局。
 - `src/main.tsx`：中文 `ConfigProvider`、antd `App` 上下文、QueryClient 和路由挂载。
 
 后端接口变化后，先启动后端，再执行：
