@@ -1,4 +1,5 @@
 """ 文档的数据库层操作 """
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import select, func
@@ -84,3 +85,31 @@ class DocumentRepository:
         items = (await self.session.execute(item_stmt)).scalars().all()
         total_count = (await self.session.execute(count_stmt)).scalar_one()
         return list(items), int(total_count)
+
+    """ 
+        聚合统计相关方法
+    """
+
+    async def count(
+            self, *, permission_tags: list[str] | None = None,
+    ) -> int:
+        """ 统计可见文档总数,给MCP Get knowledge by state用 """
+        stmt = select(func.count()).select_from(Document)
+        perm_where = _permission_where(permission_tags) # 权限过滤
+        if perm_where is not None:
+            stmt = stmt.where(perm_where)
+        return int((await self.session.execute(stmt)).scalar_one())
+
+    async def get_last_indexed_at(
+            self, *, permission_tags: list[str] | None = None,
+    ) -> datetime | None:
+        """ 获取最近一次进入Ready状态的文档时间 : 使用的是UpdateAt """
+        stmt = select(func.max(Document.updated_at)).where(
+            Document.status == DocumentStatus.READY
+        )
+        perm_where = _permission_where(permission_tags)
+        if perm_where is not None:
+            stmt = stmt.where(perm_where)
+        return (await self.session.execute(stmt)).scalar_one_or_none()
+
+

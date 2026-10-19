@@ -184,3 +184,21 @@ class DocumentChunkRepository:
             .order_by(DocumentChunk.chunk_index.asc())
         )
         return list((await self.session.execute(stmt)).scalars().all())
+
+
+    """ 统计可见Chunks总数(MCP获取知识库基本信息状态用) """
+    async def count_visible(
+            self, *, permission_tags: list[str] | None = None
+    ) -> int:
+        """ 统计可见的Chunks总数，仅查找状态为Ready的文档 """
+        stmt = (
+            select(func.count()).select_from(DocumentChunk)
+            .join(Document, Document.id == DocumentChunk.document_id)
+            .where(Document.status == "ready")
+        )
+        perm_where = _permission_where(permission_tags)
+        if perm_where is not None:
+            stmt = stmt.where(perm_where)
+
+        return int((await self.session.execute(stmt)).scalar_one())
+

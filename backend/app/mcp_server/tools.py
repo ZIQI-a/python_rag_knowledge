@@ -1,27 +1,28 @@
 import base64
-
 import binascii
 from typing import Literal
 
 from mcp.server.fastmcp import FastMCP, Context
 from mcp.server.fastmcp.exceptions import ToolError
 
+from app.api.schemas.documents import DocumentStatusValue
 from app.core.exceptions import AppException
 from app.core.logging import get_logger
+from app.db.models import DocumentStatus
 from app.db.session import AsyncSessionLocal
 from app.mcp_server.auth import resolve_current_user, require_admin
-from app.mcp_server.schemas import MCPAskAnswer, MCPCitation, MCPUploadResult, MCPDocumentList, MCPDocumentItem
+from app.mcp_server.schemas import MCPAskAnswer, MCPCitation, MCPUploadResult, MCPDocumentList, MCPDocumentItem, \
+    MCPStats
 from app.services.chat_service import ChatService
 from app.services.document_service import DocumentService
 from app.services.permission_service import is_admin, compute_user_permission_tags
-from app.api.schemas.documents import DocumentStatusValue
-from app.db.models import DocumentStatus
-
 
 logger = get_logger(__name__)
 
+
 def register_tools(mcp: FastMCP) -> None:
     """ 5个知识库工具挂到给定的Fast MCP实例 """
+
     @mcp.tool(
         name="ask_knowledge_base",
         title="知识库问答",
@@ -142,6 +143,28 @@ def register_tools(mcp: FastMCP) -> None:
             page_size=page_size
         )
 
+    @mcp.tool(
+        name="get_knowledge_base_stats",
+        title="知识库概览",
+        description=(
+                "返回当前用户视角的文档总数 / chunk 总数 / 最近入库时间。"
+                "admin 看全量，普通用户严格按权限标签过滤后统计。"
+        )
+    )
+    async def get_knowledge_base_stats(ctx: Context) -> MCPStats:
+        user = await resolve_current_user(ctx)
+        async with AsyncSessionLocal() as session:
+            service = DocumentService(session)
+            try:
+                stats = await service.get_stats(permission_tags=_viewer_tags(user))
+            except Exception as exc:
+                raise _to_tool_error(exc, default="知识库统计查询失败") from exc
+
+        return MCPStats(
+            document_count=stats.document_count,
+            chunk_count=stats.chunk_count,
+            last_indexed_at=stats.last_indexed_at
+        )
 
 
 def _to_tool_error(exc: Exception, *, default: str) -> ToolError:
@@ -151,8 +174,10 @@ def _to_tool_error(exc: Exception, *, default: str) -> ToolError:
     logger.exception("MCP tool unexpected error")
     return ToolError(default)
 
+
 class _Base64UploadFile:
     """ 把Bytes包装成兼容FastAPI的Upload的轻量对象 """
+
     def __init__(self, *, filename: str, content: bytes, content_type: str | None) -> None:
         self.filename = filename
         self.content_type = content_type or ""
@@ -161,22 +186,27 @@ class _Base64UploadFile:
     async def read(self) -> bytes:
         return self._content
 
+
 # 权限标签查询(指定用户的)
 def _viewer_tags(user) -> list[str] | None:
     """ 查询指定用户的权限标签 """
     return None if is_admin(user) else compute_user_permission_tags(user)
 
+
 def _status_value(status: DocumentStatus) -> DocumentStatusValue:
     """枚举 → 字面量字符串，让 MCP schema 字段稳定为联合字面量。"""
     return status.value  # type: ignore[return-value]
+
 
 def _task_type_value(task) -> Literal["ingest", "reindex"] | None:
     """ 获取任务的类型是首次创建还是增量 """
     return task.task_type.value if task else None
 
+
 def _task_status_value(task):
     """ 获取任务的状态 """
     return task.status.value if task else None
+
 
 def _parse_uuid(raw: str, *, field: str):
     """ 检查给定的字符串是否为合法的 UUID """
@@ -186,4 +216,3 @@ def _parse_uuid(raw: str, *, field: str):
         return UUID(raw)
     except (TypeError, ValueError) as exc:
         raise ToolError(f"{field} 不是合法的 UUID") from exc
-

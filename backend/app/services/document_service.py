@@ -1,6 +1,8 @@
 """ 文档相关服务，调用定义好的下层DB操作 """
 import hashlib
 from collections.abc import Sequence
+from dataclasses import dataclass
+from datetime import datetime
 from pathlib import PurePath
 from uuid import UUID
 
@@ -47,6 +49,13 @@ _DELETABLE_STATUSES = frozenset(
         DocumentStatus.UPLOADING,
     }
 )
+
+@dataclass(frozen=True)
+class KnowledgeBaseStats:
+    """ 知识库整体状态信息快照，按权限范围统计 """
+    document_count: int
+    chunk_count: int
+    last_indexed_at: datetime | None
 
 
 # 规范化权限标签：去空白、去空串、去重、保持稳定顺序
@@ -291,3 +300,25 @@ class DocumentService:
         reindex_document_task.delay(str(doc.id), str(task.id))
         logger.info("文档重建任务执行完成: id=%s", document_id)
         return doc
+
+    """ 获取Document文档总数与最新入库时间等基础状态 """
+    async def get_stats(
+            self, *, permission_tags: list[str] | None = None
+    ) -> KnowledgeBaseStats:
+        """聚合 documents / chunks 总数与最新入库时间。
+
+        permission_tags：admin 视角传 None 不限；普通用户传合并后的有效标签，
+        三处统计 SQL 共用 `_permission_where` 保证可见性一致。
+        """
+        document_count = await self.repo.count(permission_tags=permission_tags)
+        chunk_count = await self.chunk_repo.count_visible(
+            permission_tags=permission_tags
+        )
+        last_indexed_at = await self.repo.get_last_indexed_at(
+            permission_tags=permission_tags
+        )
+        return KnowledgeBaseStats(
+            document_count=document_count,
+            chunk_count=chunk_count,
+            last_indexed_at=last_indexed_at,
+        )
