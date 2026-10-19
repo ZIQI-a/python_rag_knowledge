@@ -12,7 +12,7 @@ from app.db.models import DocumentStatus
 from app.db.session import AsyncSessionLocal
 from app.mcp_server.auth import resolve_current_user, require_admin
 from app.mcp_server.schemas import MCPAskAnswer, MCPCitation, MCPUploadResult, MCPDocumentList, MCPDocumentItem, \
-    MCPStats
+    MCPStats, MCPDocumentStatus
 from app.services.chat_service import ChatService
 from app.services.document_service import DocumentService
 from app.services.permission_service import is_admin, compute_user_permission_tags
@@ -152,6 +152,7 @@ def register_tools(mcp: FastMCP) -> None:
         )
     )
     async def get_knowledge_base_stats(ctx: Context) -> MCPStats:
+        """ 查询文档的统计信息，文档总数、Chunk总数\入库时间 """
         user = await resolve_current_user(ctx)
         async with AsyncSessionLocal() as session:
             service = DocumentService(session)
@@ -164,6 +165,45 @@ def register_tools(mcp: FastMCP) -> None:
             document_count=stats.document_count,
             chunk_count=stats.chunk_count,
             last_indexed_at=stats.last_indexed_at
+        )
+
+    @mcp.tool(
+        name="get_document_status",
+        title="查询文档状态",
+        description=(
+                "返回文档当前状态与最近一次入库任务（ingest / reindex）的进度。"
+                "适合在 upload_document 后轮询直到 status='ready'。"
+        ),
+    )
+    async def get_document_status(
+            document_id: str,
+            ctx: Context,
+    ) -> MCPDocumentStatus:
+        """ 查询文档的状态、基本信息 """
+        user = await resolve_current_user(ctx)
+        document_uuid = _parse_uuid(document_id, field="document_id")
+
+        async with AsyncSessionLocal() as session:
+            service = DocumentService(session)
+            try:
+                document = await service.get(
+                    document_uuid, permission_tags=_viewer_tags(user)
+                )
+                latest = await service.get_latest_task(document.id)
+            except Exception as exc:
+                raise _to_tool_error(exc, default="文档状态查询失败") from exc
+
+        return MCPDocumentStatus(
+            document_id=document.id,
+            name=document.name,
+            status=_status_value(document.status),
+            version=document.version,
+            error_message=document.error_message,
+            latest_task_type=_task_type_value(latest),
+            latest_task_status=_task_status_value(latest),
+            latest_task_progress_total=latest.progress_total if latest else None,
+            latest_task_progress_done=latest.progress_done if latest else None,
+            latest_task_error_message=latest.error_message if latest else None,
         )
 
 
