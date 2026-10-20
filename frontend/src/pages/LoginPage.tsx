@@ -50,9 +50,12 @@ export function LoginPage() {
                 <div style={{display: 'flex', justifyContent: 'center', marginBottom: 16}}>
                     <BrandLogo size={64} showText={false}/>
                 </div>
-                <Typography.Title level={3} style={{ textAlign: 'center', marginBottom: 24 }}>
+                <Typography.Title level={1} style={{ fontSize: 24, textAlign: 'center', marginBottom: 8 }}>
                     {BRAND.productName}
                 </Typography.Title>
+                <Typography.Paragraph type="secondary" style={{fontSize: 13, textAlign: 'center', marginBottom: 24}}>
+                    {BRAND.description}
+                </Typography.Paragraph>
                 <Form<LoginFormValues>
                     layout="vertical"
                     onFinish={onFinish}

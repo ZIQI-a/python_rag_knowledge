@@ -1,0 +1,3 @@
+# 页面允许抓取以读取 HTML 中的 noindex；接口不参与抓取。
+User-agent: *
+Disallow: /api/
