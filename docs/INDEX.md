@@ -4,12 +4,13 @@
 
 | 文档 | 内容 |
 | --- | --- |
-| [项目 README](../README.md) | 项目用途、功能、技术栈与目录 |
+| [项目 README](../README.md) | 项目介绍、界面预览、系统架构、技术栈与快速开始 |
 | [后端 README](../backend/README.md) | 配置、运行、接口、MCP 与评测 |
 | [前端 README](../frontend/README.md) | 页面、目录与开发命令 |
 | [全局 AGENTS](../AGENTS.md) | 全局约束与按范围读取入口 |
 | [后端 AGENTS](../backend/AGENTS.md) | 后端约束与快速索引 |
 | [前端 AGENTS](../frontend/AGENTS.md) | 前端约束与快速索引 |
+| [项目封面](images/cover.png)、[页面截图](images/screenshots/) | 项目展示素材 |
 
 ## 基础设施
 
