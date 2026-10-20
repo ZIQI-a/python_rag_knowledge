@@ -5,6 +5,8 @@ import {useAuthStore} from "@/stores/authStore.ts";
 import {useState} from "react";
 import {login} from "@/api/auth.ts";
 import {LockOutlined, UserOutlined} from "@ant-design/icons";
+import {BrandLogo} from '@/components/BrandLogo';
+import {BRAND} from '@/config/brand';
 
 interface LoginFormValues {
     username: string
@@ -44,9 +46,12 @@ export function LoginPage() {
                 padding: 24
             }}
         >
-            <Card style={{ width: 360 }} variant="borderless">
+            <Card style={{ width: '100%', maxWidth: 360 }} variant="borderless">
+                <div style={{display: 'flex', justifyContent: 'center', marginBottom: 16}}>
+                    <BrandLogo size={64} showText={false}/>
+                </div>
                 <Typography.Title level={3} style={{ textAlign: 'center', marginBottom: 24 }}>
-                    欢迎来到问津渡口
+                    {BRAND.productName}
                 </Typography.Title>
                 <Form<LoginFormValues>
                     layout="vertical"

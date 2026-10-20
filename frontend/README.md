@@ -20,10 +20,17 @@ React 19、TypeScript、Vite、Ant Design 6、React Router 7 与 TanStack Query 
 - `src/pages/`：业务页面。
 - `src/routes/`、`src/layouts/`：路由、布局及菜单。
 - `src/components/`：引用、追踪、评测、会话与鉴权组件。
+- `src/config/brand.ts`：品牌名称、标识地址与模块标签标题。
 - `src/api/`：请求封装、SSE、查询键及业务数据请求。
 - `src/client/`：OpenAPI 生成的类型和 SDK。
 - `src/stores/`、`src/utils/`：认证状态与公共工具。
 - `src/main.tsx`：中文配置、antd App、QueryClient 与路由挂载。
+
+## 品牌标识
+
+使用「渡口书页」标识，登录页和侧栏共用 `BrandLogo`，折叠侧栏仅展示图标。`PageTitleLayout` 随路由更新标签标题，名称统一维护在 `src/config/brand.ts`。
+
+`public/favicon.svg` 为矢量标识，`favicon.ico` 提供 16、32、48 像素版本，`apple-touch-icon.png` 为 180 像素触屏图标。更换标识时同步这些资源；HTML 初始标题在 `index.html` 中维护。
 
 ## 开发
 

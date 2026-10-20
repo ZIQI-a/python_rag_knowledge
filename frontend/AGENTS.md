@@ -18,6 +18,7 @@
 | 业务页面 | `src/pages/` |
 | 登录状态与守卫 | `src/stores/authStore.ts`、`src/components/RequireAuth.tsx`、`RequireAdmin.tsx` |
 | 共享组件 | `src/components/` |
+| 品牌 / 标签标题 | `src/config/brand.ts`、`src/components/BrandLogo.tsx`、`PageTitleLayout.tsx`、`public/`、`index.html` |
 | 请求 / SSE / 查询键 | `src/api/` |
 | 生成客户端 / 代理 | `src/client/`、`openapi-ts.config.ts`、`vite.config.ts` |
 | 文件链接与辅助逻辑 | `src/utils/` |

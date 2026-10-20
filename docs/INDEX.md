@@ -49,6 +49,7 @@
 | --- | --- |
 | 应用装配 | [main.tsx](../frontend/src/main.tsx) |
 | 路由与布局 | [routes/](../frontend/src/routes/)、[layouts/](../frontend/src/layouts/) |
+| 品牌、图标与标签标题 | [brand.ts](../frontend/src/config/brand.ts)、[BrandLogo.tsx](../frontend/src/components/BrandLogo.tsx)、[PageTitleLayout.tsx](../frontend/src/components/PageTitleLayout.tsx)、[public/](../frontend/public/)、[index.html](../frontend/index.html) |
 | 首页、登录、文档、对话、评测、用户与角色 | [pages/](../frontend/src/pages/) |
 | 鉴权、会话、引用、追踪、指标与归因组件 | [components/](../frontend/src/components/) |
 | 请求、SSE 与查询键 | [api/](../frontend/src/api/) |

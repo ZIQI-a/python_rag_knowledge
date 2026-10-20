@@ -9,6 +9,9 @@ import {
 import {Link, Outlet, useLocation} from 'react-router-dom';
 import {useAuthStore} from "@/stores/authStore.ts";
 import {UserMenu} from "@/components/UserMenu.tsx";
+import {useState} from 'react';
+import {BrandLogo} from '@/components/BrandLogo';
+import {BRAND} from '@/config/brand';
 
 
 const {Header, Sider, Content} = Layout;
@@ -62,6 +65,7 @@ function resolveSelectedKey(pathname: string): string {
 }
 
 export function BasicLayout() {
+    const [collapsed, setCollapsed] = useState(false)
     const location = useLocation()
     const selectedKey = resolveSelectedKey(location.pathname)
     const isAdmin = useAuthStore((s) => Boolean(s.user?.isAdmin))
@@ -70,18 +74,15 @@ export function BasicLayout() {
 
     return (
         <Layout style={{minHeight: '100vh'}}>
-            <Sider breakpoint={'lg'} collapsedWidth={64}>
-                <div
+            <Sider breakpoint={'lg'} collapsedWidth={64} collapsed={collapsed} onCollapse={setCollapsed}>
+                <Link to="/" aria-label={`${BRAND.name}首页`}
                     style={{
-                        color: '#fff',
-                        fontWeight: 600,
-                        textAlign: "center",
-                        padding: '16px 0',
-                        fontSize: 16
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        padding: '20px 8px',
                     }}
                 >
-                    问津RAG知识库
-                </div>
+                    <BrandLogo size={32} showText={!collapsed} inverse/>
+                </Link>
                 <Menu
                     mode={'inline'}
                     theme={'dark'}
@@ -95,7 +96,7 @@ export function BasicLayout() {
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                     fontSize: 16
                 }}>
-                    问津-知识库
+                    {BRAND.productName}
                     <UserMenu />
                 </Header>
 

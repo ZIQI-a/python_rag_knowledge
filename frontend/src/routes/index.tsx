@@ -11,33 +11,39 @@ import {UserPage} from "@/pages/UserPage.tsx";
 import {RolesPage} from "@/pages/RolesPage.tsx";
 import {RequireAuth} from "@/components/RequireAuth.tsx";
 import {RequireAdmin} from "@/components/RequireAdmin.tsx";
+import {PageTitleLayout} from "@/components/PageTitleLayout.tsx";
 
 export const router = createBrowserRouter([
-    // 登录单独路由
-    { path: '/login', element: <LoginPage /> },
     {
-        path: '/',
-        element: <RequireAuth />,
+        element: <PageTitleLayout />,
         children: [
+            // 登录单独路由
+            { path: '/login', element: <LoginPage /> },
             {
-                element: <BasicLayout />,
+                path: '/',
+                element: <RequireAuth />,
                 children: [
-                    { index: true, element: <HomePage /> },
-                    { path: 'documents', element: <DocumentsPage /> },
-                    { path: 'documents/:id', element: <DocumentDetailPage /> },
-                    { path: 'chat', element: <ChatPage />},
-                    // admin only
                     {
-                        element: <RequireAdmin />,
+                        element: <BasicLayout />,
                         children: [
-                            { path: 'evaluation', element: <EvaluationListPage /> },
-                            { path: 'evaluation/runs/:id', element: <EvaluationDetailPage /> },
-                            { path: 'users', element: <UserPage /> },
-                            { path: 'roles', element: <RolesPage /> },
+                            { index: true, element: <HomePage /> },
+                            { path: 'documents', element: <DocumentsPage /> },
+                            { path: 'documents/:id', element: <DocumentDetailPage /> },
+                            { path: 'chat', element: <ChatPage />},
+                            // admin only
+                            {
+                                element: <RequireAdmin />,
+                                children: [
+                                    { path: 'evaluation', element: <EvaluationListPage /> },
+                                    { path: 'evaluation/runs/:id', element: <EvaluationDetailPage /> },
+                                    { path: 'users', element: <UserPage /> },
+                                    { path: 'roles', element: <RolesPage /> },
+                                ]
+                            }
                         ]
                     }
-                ]
-            }
+                ],
+            },
         ],
     },
 ])
