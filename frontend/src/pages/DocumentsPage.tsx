@@ -269,7 +269,7 @@ export function DocumentsPage() {
                 ) : (
                     <Space size={4} wrap>
                         {tags.map((t) => (
-                            <Tag color={t === '*' ? 'gold' : 'blue'} key={t}>
+                            <Tag color={t === '*' ? 'warning' : 'default'} key={t}>
                                 {t}
                             </Tag>
                         ))}
@@ -280,7 +280,7 @@ export function DocumentsPage() {
             title: '版本',
             dataIndex: 'version',
             width: 80,
-            render: (version: number) => <Tag color="purple">v{version}</Tag>,
+            render: (version: number) => <Tag color="default">v{version}</Tag>,
         },
         {
             title: '上传时间',

@@ -7,6 +7,7 @@ import {login} from "@/api/auth.ts";
 import {LockOutlined, UserOutlined} from "@ant-design/icons";
 import {BrandLogo} from '@/components/BrandLogo';
 import {BRAND} from '@/config/brand';
+import {PALETTE} from '@/config/theme';
 
 interface LoginFormValues {
     username: string
@@ -42,7 +43,8 @@ export function LoginPage() {
                 minHeight: '100vh',
                 display: 'grid',
                 placeItems: 'center',
-                background: 'linear-gradient(135deg, #f5f7fb 0%, #e6efff 100%)',
+                background: PALETTE.paper,
+                boxSizing: 'border-box',
                 padding: 24
             }}
         >

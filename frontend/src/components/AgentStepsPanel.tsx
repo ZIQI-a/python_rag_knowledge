@@ -1,3 +1,4 @@
+import {PALETTE} from '@/config/theme'
 import {Collapse, Tag, Typography} from "antd";
 import type {AgentStep} from "@/client";
 import React from "react";
@@ -7,10 +8,10 @@ const { Text, Paragraph } = Typography
 // 影射5种Action
 const ACTION_META: Record<AgentStep['action'], { color: string; label: string }> = {
     initial: { color: 'default', label: '初始检索' },
-    proceed: { color: 'green', label: '继续生成' },
-    rewrite_query: { color: 'blue', label: '改写Query' },
-    switch_route: { color: 'purple', label: '切换策略' },
-    refuse: { color: 'red', label: '拒绝' }
+    proceed: { color: 'success', label: '继续生成' },
+    rewrite_query: { color: 'default', label: '改写Query' },
+    switch_route: { color: 'default', label: '切换策略' },
+    refuse: { color: 'error', label: '拒绝' }
 }
 
 interface AgentStepsPanelProps {
@@ -31,13 +32,13 @@ export function AgentStepsPanel({ steps }: AgentStepsPanelProps) {
         <Collapse
             size="small"
             ghost
-            style={{ marginTop: 12, background: '#fafafa', borderRadius: 6 }}
+            style={{ marginTop: 12, background: PALETTE.sunken, borderRadius: 6 }}
             items={[
                 {
                     key: 'agent',
                     label: (
                         <span>
-                            <Tag color="geekblue" style={{ marginInlineEnd: 8 }}>
+                            <Tag color="default" style={{ marginInlineEnd: 8 }}>
                                 Agent · {rounds} 轮
                             </Tag>
                             <Text type="secondary">
@@ -101,7 +102,7 @@ function StepRow({ step }: {step: AgentStep}) {
 const paragraphStyle: React.CSSProperties = {
     whiteSpace: 'pre-wrap',
     marginBottom: 4,
-    color: '#555',
+    color: PALETTE.secondary,
     fontSize: 13
 }
 const smallLabel: React.CSSProperties = {

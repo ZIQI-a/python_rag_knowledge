@@ -67,7 +67,7 @@ export function RolesPage() {
                 record.permission_tags && record.permission_tags.length > 0 ? (
                     <Space size={4} wrap>
                         {record.permission_tags.map((t) => (
-                            <Tag key={t} color={t === '*' ? 'red' : 'blue'}>{t}</Tag>
+                            <Tag key={t} color={t === '*' ? 'warning' : 'default'}>{t}</Tag>
                         ))}
                     </Space>
                 ) : <Tag>公开文档</Tag>

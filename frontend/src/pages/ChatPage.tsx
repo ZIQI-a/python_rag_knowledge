@@ -1,3 +1,4 @@
+import {PALETTE} from '@/config/theme'
 // 对话页面
 
 import {Alert, Avatar, Button, Empty, Input, Layout, message as antdMessage, Spin, Tag, Typography} from "antd";
@@ -313,16 +314,16 @@ export function ChatPage() {
 
         <Layout style={{
             height: 'calc(100vh - 160px)',
-            background: '#fff',
+            background: PALETTE.raised,
             borderRadius: 8,
             overflow: "hidden",
-            border: '1px solid #f0f0f0'
+            border: `1px solid ${PALETTE.line}`
         }}>
             {/*右侧会话列表展示*/}
             <Sider
                 width={260}
                 theme={"light"}
-                style={{borderRight: '1px solid #f0f0f0', background: '#fafafa'}}
+                style={{borderRight: `1px solid ${PALETTE.line}`, background: PALETTE.sunken}}
             >
                 <ConversationSidebar currentId={conversationId} onSelect={handleSelectConversation}
                                      onDeleted={handleConversationDeleted} onCreateNew={handleNewConversation}
@@ -422,14 +423,14 @@ function AssistantHeader({message}: { message: UiMessage }) {
     const tags: React.ReactNode[] = []
     if (message.cacheHit) {
         tags.push(
-            <Tag key="cache" color="cyan">
+            <Tag key="cache" color="default">
                 缓存命中
             </Tag>
         )
     }
     if (message.verifyResult?.verified === true) {
         tags.push(
-            <Tag key="verified" color="green">
+            <Tag key="verified" color="success">
                 已校验
             </Tag>
         )
@@ -474,12 +475,12 @@ function MessageBubble({message}: MessageBubbleProps) {
         >
             <Avatar
                 icon={isUser ? <UserOutlined/> : <RobotOutlined/>}
-                style={{background: isUser ? '#1890ff' : '#f56a00', flexShrink: 0}}
+                style={{background: isUser ? PALETTE.primary : PALETTE.secondary, flexShrink: 0}}
             />
             <div
                 style={{
                     maxWidth: '78%',
-                    background: isUser ? '#e6f7ff' : '#f6f6f6',
+                    background: isUser ? PALETTE.primarySoft : PALETTE.sunken,
                     padding: '12px 16px',
                     borderRadius: 8
                 }}

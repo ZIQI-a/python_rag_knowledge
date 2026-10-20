@@ -1,3 +1,4 @@
+import {PALETTE} from '@/config/theme'
 // 路由策略调试面板前端展示
 
 
@@ -9,9 +10,9 @@ const { Paragraph, Text } = Typography
 
 const ROUTE_META: Record<QueryRouteRead['route'], { color: string; label: string; hint: string }> = {
     original: { color: 'default', label: 'Original', hint: '问题清晰，无需改写' },
-    rewrite: { color: 'blue', label: 'Rewrite', hint: '问题已改写' },
-    hyde: { color: 'purple', label: 'HyDE', hint: '已生成假设答案用于检索' },
-    multi_query: { color: 'orange', label: 'Multi_Query', hint: '已扩展为多个子查询' },
+    rewrite: { color: 'default', label: 'Rewrite', hint: '问题已改写' },
+    hyde: { color: 'default', label: 'HyDE', hint: '已生成假设答案用于检索' },
+    multi_query: { color: 'default', label: 'Multi_Query', hint: '已扩展为多个子查询' },
 }
 
  // 路由策略调试面板前端展示
@@ -30,7 +31,7 @@ export function QueryRoutePanel({ queryRoute }: QueryRoutePanelProps) {
         <Collapse
             size="small"
             ghost
-            style={{ marginTop: 12, background: '#fafafa', borderRadius: 6 }}
+            style={{ marginTop: 12, background: PALETTE.sunken, borderRadius: 6 }}
             items={[
                 {
                     key: 'route',
@@ -67,7 +68,7 @@ function RouteDetail({queryRoute}: { queryRoute: QueryRouteRead }) {
         case 'multi_query':
             return (
                 <DetailRow label="子查询列表">
-                    <ol style={{ paddingInlineStart: 20, margin: 0, color: '#555' }}>
+                    <ol style={{ paddingInlineStart: 20, margin: 0, color: PALETTE.secondary }}>
                         {(queryRoute.multi_queries ?? []).map((q, i) => (
                             <li key={i} style={{ marginBottom: 4 }}>
                                 {q}
@@ -85,7 +86,7 @@ function RouteDetail({queryRoute}: { queryRoute: QueryRouteRead }) {
 function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
     return (
         <div>
-            <Text strong style={{ fontSize: 12, color: '#888' }}>
+            <Text strong style={{ fontSize: 12, color: PALETTE.muted }}>
                 {label}
             </Text>
             <div style={{ marginTop: 4 }} > {children}</div>
@@ -96,5 +97,5 @@ function DetailRow({ label, children }: { label: string; children: React.ReactNo
 const paragraphStyle: React.CSSProperties = {
     whiteSpace: 'pre-wrap',
     marginBottom:0,
-    color: '#555'
+    color: PALETTE.secondary
 }

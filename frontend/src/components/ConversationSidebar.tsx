@@ -1,3 +1,4 @@
+import {PALETTE} from '@/config/theme'
 import {Button, List, message, Popconfirm, Spin, Tooltip, Typography} from "antd";
 import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
 import {conversationsQueryKey} from "@/api/queryKeys.ts";
@@ -46,7 +47,7 @@ export function ConversationSidebar({
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-            <div style={{ padding: 12, borderBottom: '1px solid #f0f0f0' }}>
+            <div style={{ padding: 12, borderBottom: `1px solid ${PALETTE.line}` }}>
                 <Button
                     type="primary"
                     icon={<PlusOutlined />}
@@ -111,7 +112,7 @@ function ConversationItem({
         <List.Item
             style={{
                 cursor: 'pointer',
-                background: isActive ? '#e6f4ff' : 'transparent',
+                background: isActive ? PALETTE.primarySoft : 'transparent',
                 padding: '8px 12px',
                 borderRadius: 4,
                 margin: '2px 8px',

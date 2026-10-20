@@ -1,3 +1,4 @@
+import {PALETTE} from '@/config/theme'
 /** 可观测性Trace AD面板,单条Trace ID信息的渲染 **/
 import {Space, Tag, Tooltip, Typography} from "antd";
 
@@ -20,7 +21,7 @@ export function TraceIdPanel({ traceId, traceUrl }: TraceIdPanelProps) {
             style={{
                 marginTop:12,
                 padding: '6px 10px',
-                background: '#fafafa',
+                background: PALETTE.sunken,
                 borderRadius: 6,
                 fontSize: 12
             }}

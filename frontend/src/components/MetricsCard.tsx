@@ -1,3 +1,4 @@
+import {PALETTE} from '@/config/theme'
 /** 评测指标卡组件一共8个卡片，6张指标，2张耗时 */
 import {Card, Statistic, Tooltip} from "antd";
 import {QuestionCircleOutlined} from "@ant-design/icons";
@@ -23,9 +24,9 @@ function formatValue(value: number | null | undefined, passthrough: boolean) {
 function colorOf(value: number | null | undefined, passthrough: boolean) {
     if (value === null || value === undefined) return undefined
     if (passthrough) return undefined
-    if (value >= 0.8) return '#52c41a'
-    if (value >= 0.6) return '#faad14'
-    return '#ff4d4f'
+    if (value >= 0.8) return PALETTE.primary
+    if (value >= 0.6) return PALETTE.warningText
+    return PALETTE.accent
 }
 
 /** 指标卡组件 */
@@ -39,7 +40,7 @@ export function MetricsCard({ label, value, passthrough = false, hint, suffix }:
                         {label}
                         {hint && (
                              <Tooltip title={hint}>
-                                 <QuestionCircleOutlined style={{ marginLeft: 6, color: '#8c8c8c' }} />
+                                 <QuestionCircleOutlined style={{ marginLeft: 6, color: PALETTE.muted }} />
                              </Tooltip>
                             )
                         }

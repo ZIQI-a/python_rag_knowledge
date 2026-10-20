@@ -8,9 +8,17 @@ import zhCN from 'antd/locale/zh_CN'
 import './index.css'
 import {router} from './routes'
 import {useAuthStore} from "@/stores/authStore.ts";
+import {PALETTE, wenjinTheme} from '@/config/theme'
 
 // 先加载本地存储的用户信息
 useAuthStore.getState().hydrate()
+
+// 为请求拦截器等处的静态提示提供同一套主题与语言配置。
+ConfigProvider.config({
+    holderRender: (children) => (
+        <ConfigProvider locale={zhCN} theme={wenjinTheme}>{children}</ConfigProvider>
+    ),
+})
 
 // 构建查询服务
 const queryClient = new QueryClient({
@@ -28,8 +36,8 @@ if (!root) throw new Error('根元素找不到')
 
 createRoot(root).render(
     <StrictMode>
-        <ConfigProvider locale={zhCN} theme={{token: {colorPrimary: '#1677ff'}}}>
-            <AntdApp>
+        <ConfigProvider locale={zhCN} theme={wenjinTheme}>
+            <AntdApp style={{minHeight: '100vh', background: PALETTE.paper, color: PALETTE.ink}}>
                 <QueryClientProvider client={queryClient}>
                     <RouterProvider router={router}/>
                 </QueryClientProvider>

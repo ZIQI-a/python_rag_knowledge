@@ -14,11 +14,11 @@ const STATUS_LABELS: Record<DocumentStatus, string> = {
 }
 
 const STATUS_COLORS: Record<DocumentStatus, string> = {
-    uploading: 'blue',
-    parsing: 'cyan',
-    indexing: 'geekblue',
-    ready: 'green',
-    failed: 'red'
+    uploading: 'processing',
+    parsing: 'processing',
+    indexing: 'processing',
+    ready: 'success',
+    failed: 'error'
 }
 
 export function isTerminalStatus(status: DocumentStatus): boolean {

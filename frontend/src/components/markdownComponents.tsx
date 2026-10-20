@@ -1,3 +1,4 @@
+import {PALETTE} from '@/config/theme'
 import type React from "react";
 
 
@@ -11,7 +12,7 @@ export const gfmComponents = {
                     borderCollapse: 'collapse',
                     width: '100%',
                     fontSize: 13,
-                    background: '#fff',
+                    background: PALETTE.raised,
                 }}
                 />
         </div>
@@ -20,24 +21,24 @@ export const gfmComponents = {
         <th
             {...props}
             style={{
-                border: '1px solid #ddd',
+                border: `1px solid ${PALETTE.lineStrong}`,
                 padding: '8px 16px',
                 textAlign: 'left',
                 fontWeight: 'bold',
-                background: '#fafafa',
+                background: PALETTE.sunken,
             }}
         />
     ),
     td: (props: React.ComponentProps<'td'>) => (
         <td
             {...props}
-            style={{ border: '1px solid #ddd', padding: '8px 16px', verticalAlign: 'top' }}
+            style={{ border: `1px solid ${PALETTE.lineStrong}`, padding: '8px 16px', verticalAlign: 'top' }}
             />
     ),
     code: (props: React.ComponentProps<'code'>) => (
         <code
             {...props}
-            style={{ background: 'rgba(0,0,0,0.06)', padding: '1px 4px', borderRadius: 3, fontSize: '0.9rem' }}
+            style={{ background: PALETTE.primarySoft, padding: '1px 4px', borderRadius: 3, fontSize: '0.9rem' }}
         />
     )
 }

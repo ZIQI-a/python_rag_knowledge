@@ -21,6 +21,7 @@ React 19、TypeScript、Vite、Ant Design 6、React Router 7 与 TanStack Query 
 - `src/routes/`、`src/layouts/`：路由、布局及菜单。
 - `src/components/`：引用、追踪、评测、会话与鉴权组件。
 - `src/config/brand.ts`：品牌名称、标识地址与模块标题、描述。
+- `src/config/theme.ts`：沧浪濯缨色板与 Ant Design 主题配置。
 - `src/api/`：请求封装、SSE、查询键及业务数据请求。
 - `src/client/`：OpenAPI 生成的类型和 SDK。
 - `src/stores/`、`src/utils/`：认证状态与公共工具。
@@ -35,6 +36,12 @@ React 19、TypeScript、Vite、Ant Design 6、React Router 7 与 TanStack Query 
 ## 页面信息与搜索收录
 
 `index.html` 提供初始产品描述、Open Graph 与 Twitter 分享摘要；`PageTitleLayout` 根据 `brand.ts` 同步各模块标题和描述。元信息使用固定模块说明，不包含文档名、问答内容、用户信息及 URL 参数。调整通用产品描述时同步 `brand.ts` 与 HTML 初始值；不执行 JavaScript 的分享服务使用 HTML 初始摘要。
+
+## 主题配色
+
+默认使用「沧浪濯缨」亮色主题：宣纸 `#F6F4EC` 为页面底色，墨色 `#2B2B30` 为正文，沧浪 `#3E746B` 为主操作与链接，月白 `#E4EEEA` 为选中背景，朱砂 `#BF3B2B` 用于危险操作和失败状态。分类标签使用中性色，状态保留语义色与文字说明。
+
+`src/config/theme.ts` 统一导出 `PALETTE` 和 `wenjinTheme`。标准组件通过 `main.tsx` 的 ConfigProvider 接入，自定义容器与 Markdown 样式引用同一色板；静态提示通过 `holderRender` 使用同一主题。保留现有字号和布局，不引入全局样式覆盖或暗色切换。
 
 ## 开发
 

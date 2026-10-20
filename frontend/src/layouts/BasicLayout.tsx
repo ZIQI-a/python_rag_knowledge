@@ -12,6 +12,7 @@ import {UserMenu} from "@/components/UserMenu.tsx";
 import {useState} from 'react';
 import {BrandLogo} from '@/components/BrandLogo';
 import {BRAND} from '@/config/brand';
+import {PALETTE} from '@/config/theme';
 
 
 const {Header, Sider, Content} = Layout;
@@ -74,25 +75,26 @@ export function BasicLayout() {
 
     return (
         <Layout style={{minHeight: '100vh'}}>
-            <Sider breakpoint={'lg'} collapsedWidth={64} collapsed={collapsed} onCollapse={setCollapsed}>
+            <Sider theme="light" breakpoint={'lg'} collapsedWidth={64} collapsed={collapsed} onCollapse={setCollapsed}
+                style={{borderRight: `1px solid ${PALETTE.line}`}}>
                 <Link to="/" aria-label={`${BRAND.name}首页`}
                     style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         padding: '20px 8px',
                     }}
                 >
-                    <BrandLogo size={32} showText={!collapsed} inverse/>
+                    <BrandLogo size={32} showText={!collapsed}/>
                 </Link>
                 <Menu
                     mode={'inline'}
-                    theme={'dark'}
+                    theme={'light'}
                     selectedKeys={[selectedKey]}
                     items={menuItems}
                 />
             </Sider>
             <Layout>
                 <Header style={{
-                    background: '#fff', paddingLeft: 24, paddingRight: 24,
+                    borderBottom: `1px solid ${PALETTE.line}`, paddingLeft: 24, paddingRight: 24,
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                     fontSize: 16
                 }}>

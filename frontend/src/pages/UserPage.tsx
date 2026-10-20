@@ -72,7 +72,7 @@ export function UserPage() {
             render: (_, record) => (
                 record.roles && record.roles.length > 0 ? (
                     <Space size={4} wrap>
-                        {record.roles.map((r) => <Tag key={r.id} color="blue">{r.name}</Tag>)}
+                        {record.roles.map((r) => <Tag key={r.id} color="default">{r.name}</Tag>)}
                     </Space>
                 ) : <Space>-</Space>
             ),

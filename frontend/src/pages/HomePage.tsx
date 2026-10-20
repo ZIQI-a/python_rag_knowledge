@@ -13,9 +13,9 @@ interface CheckCardProps {
 
 // 根据状态选取颜色
 function statusColor(status: HealthStatus['status'] | undefined): string {
-    if (status === 'ok') return 'green';
-    if (status === 'not_configured') return 'orange';
-    return 'red';
+    if (status === 'ok') return 'success';
+    if (status === 'not_configured') return 'warning';
+    return 'error';
 }
 
 // 获取展示的标签值

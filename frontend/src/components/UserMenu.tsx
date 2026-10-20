@@ -40,7 +40,7 @@ export function UserMenu() {
             <Space style={{ cursor: 'pointer' }}>
                 <Avatar size="small" icon={<UserOutlined />} />
                 <Typography.Text>{user.displayName}</Typography.Text>
-                {user.isAdmin ? <Tag color="gold">管理员</Tag> : null}
+                {user.isAdmin ? <Tag>管理员</Tag> : null}
             </Space>
         </Dropdown>
     )

@@ -1,3 +1,4 @@
+import {PALETTE} from '@/config/theme'
 import {
     Alert,
     Button,
@@ -64,7 +65,7 @@ function PreviewArea({mimeType, previewUrl}: { mimeType: string; previewUrl: str
             <iframe
                 title="document-preview"
                 src={previewUrl}
-                style={{width: '100%', height: 600, border: '1px solid #f0f0f0'}}
+                style={{width: '100%', height: 600, border: `1px solid ${PALETTE.line}`}}
             />
         )
     }
@@ -187,7 +188,7 @@ function ChunksSection({
                             title={
                                 <Space wrap>
                                     <Text strong>#{chunk.chunk_index}</Text>
-                                    {chunk.page_no != null ? <Tag color="blue">第 {chunk.page_no} 页</Tag> : null}
+                                    {chunk.page_no != null ? <Tag color="default">第 {chunk.page_no} 页</Tag> : null}
                                     {chunk.section_path ? (
                                         <Text type="secondary" ellipsis style={{maxWidth: 320}}>
                                             {chunk.section_path}
@@ -227,15 +228,15 @@ function ChunkDetailBody({chunk}: { chunk: DocumentChunkDetail }) {
         <>
             <Space wrap style={{marginBottom: 12}}>
                 <Text strong>#{chunk.chunk_index}</Text>
-                {chunk.page_no != null ? <Tag color="blue">第 {chunk.page_no} 页</Tag> : null}
+                {chunk.page_no != null ? <Tag color="default">第 {chunk.page_no} 页</Tag> : null}
                 <Tag>字符数 {chunk.char_count}</Tag>
                 <Text type="secondary" code>{chunk.chunk_hash}</Text>
             </Space>
             {chunk.section_path ? <Paragraph type="secondary">{chunk.section_path}</Paragraph> : null}
             <pre
                 style={{
-                    background: '#fafafa',
-                    border: '1px solid #f0f0f0',
+                    background: PALETTE.sunken,
+                    border: `1px solid ${PALETTE.line}`,
                     padding: 12,
                     maxHeight: 480,
                     overflow: 'auto',
@@ -501,7 +502,7 @@ export function DocumentDetailPage() {
                 <Descriptions.Item label="MIME类型">{doc.mime_type}</Descriptions.Item>
                 <Descriptions.Item label="大小">{doc.size}</Descriptions.Item>
                 <Descriptions.Item label="版本">
-                    <Tag color="purple">v{doc.version}</Tag>
+                    <Tag color="default">v{doc.version}</Tag>
                 </Descriptions.Item>
                 <Descriptions.Item
                     label="更新时间">{new Date(doc.updated_at).toLocaleString('zh-CN')}</Descriptions.Item>

@@ -1,4 +1,5 @@
 import {BRAND} from '@/config/brand'
+import {PALETTE} from '@/config/theme'
 
 interface BrandLogoProps {
     size?: number
@@ -13,7 +14,7 @@ export function BrandLogo({size = 36, showText = true, inverse = false}: BrandLo
             <img src={BRAND.logoSrc} width={size} height={size} alt="" aria-hidden="true"
                  style={{display: 'block', flexShrink: 0}}/>
             {showText && (
-                <span style={{color: inverse ? '#fff' : '#18342f', fontSize: 22,
+                <span style={{color: inverse ? PALETTE.white : PALETTE.ink, fontSize: 22,
                     fontWeight: 600, letterSpacing: 3, lineHeight: 1,
                     fontFamily: '"Songti SC", "STSong", serif'}}>
                     {BRAND.name}

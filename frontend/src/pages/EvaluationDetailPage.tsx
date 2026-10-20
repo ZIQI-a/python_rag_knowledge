@@ -58,7 +58,7 @@ export function EvaluationDetailPage() {
                 const label = record.bad_case_category
                     ? BAD_CASE_CATEGORY_LABELS[record.bad_case_category]
                     : '未归因'
-                return <Tag color="red">{label}</Tag>
+                return <Tag color="error">{label}</Tag>
             }
         }
     ]
@@ -212,7 +212,7 @@ function ItemDetailDrawer({
                             {(item.tags ?? []).map((t) => (
                                 <Tag key={t}>{t}</Tag>
                             ))}
-                            {item.should_refuse && <Tag color="orange">应拒答</Tag> }
+                            {item.should_refuse && <Tag color="warning">应拒答</Tag> }
                         </Space>
                     </Card>
                     <Card size="small" title="期望答案" style={{ marginBottom: 12 }}>
@@ -231,7 +231,7 @@ function ItemDetailDrawer({
                             {(item.expected_keywords ?? []).length === 0 ? (
                                 <Text type="secondary">-</Text>
                             ) : (
-                                (item.expected_keywords ?? []).map((k) => <Tag color="blue" key={k}>{k}</Tag>)
+                                (item.expected_keywords ?? []).map((k) => <Tag color="default" key={k}>{k}</Tag>)
                             )}
                         </Space>
                     </Card>
@@ -240,7 +240,7 @@ function ItemDetailDrawer({
                             <Alert type="error" message="执行异常" description={item.error_message} />
                         ) : (
                             <>
-                                {item.actual_refused && <Tag color="orange">已拒答</Tag> }
+                                {item.actual_refused && <Tag color="warning">已拒答</Tag> }
                                 <Paragraph style={{ whiteSpace: 'pre-wrap' }}>
                                     {item.actual_answer || '-'}
                                 </Paragraph>
