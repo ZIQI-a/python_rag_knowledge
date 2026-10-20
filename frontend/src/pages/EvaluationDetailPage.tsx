@@ -1,3 +1,5 @@
+import {PageHeader} from '@/components/PageHeader'
+import {DataState, PageFailure, PageLoading} from '@/components/PageState'
 import {Alert, App, Button, Card, Col, Drawer, Form, Input, Row, Space, Switch, Table, Tag, Typography} from "antd";
 import {Link, useParams} from "react-router-dom";
 import {type BadCaseCategory, useEvaluationItems, useEvaluationRun, useUpdateEvaluationItem} from "@/api/evaluation.ts";
@@ -29,12 +31,13 @@ function boolTag(v: boolean | null | undefined) {
 
 export function EvaluationDetailPage() {
     const {id: runId} = useParams<{ id: string }>()
-    const {data: run} = useEvaluationRun(runId)
+    const runQuery = useEvaluationRun(runId)
+    const {data: run} = runQuery
     const [page, setPage] = useState(1)
     const pageSize = 20
     const [badCaseOnly, setBadCaseOnly] = useState(false)
     const [category, setCategory] = useState<BadCaseCategory | null>(null)
-    const {data: items, isLoading} = useEvaluationItems(runId, {
+    const {data: items, isLoading, isError, refetch} = useEvaluationItems(runId, {
         page, pageSize, badCaseOnly, category
     })
     const [activeItem, setActiveItem] = useState<EvaluationItemRead | null>(null)
@@ -63,26 +66,18 @@ export function EvaluationDetailPage() {
         }
     ]
 
+    if (runQuery.isLoading) return <PageLoading/>
+    if (runQuery.isError || !run) return <PageFailure onRetry={() => {void runQuery.refetch()}}/>
+
     return (
         <div>
-            <Space style={{marginBottom: 16}}>
-                <Link to="/evaluation">
-                    <Button icon={<ArrowLeftOutlined/>}>返回列表</Button>
-                </Link>
-                <h2 style={{margin: 0}}>{run?.name ?? '加载中…'}</h2>
-                {run && (
-                    <Text type="secondary">
-                        评测集 {run.dataset_name}（{run.dataset_size} 条） · 状态 {run.status}
-                        {run.status === 'running' &&
-                            ` · 进度 ${run.progress_completed}/${run.progress_total}`}
-                    </Text>
-                )}
-            </Space>
+            <PageHeader title={run.name} description={`评测集 ${run.dataset_name}（${run.dataset_size} 条） · 状态 ${run.status}`}
+                actions={<Link to="/evaluation"><Button icon={<ArrowLeftOutlined/>}>返回列表</Button></Link>}/>
             {run?.status === 'failed' && (
                 <Alert
                     type="error"
                     showIcon
-                    message="评测执行失败"
+                    title="评测执行失败"
                     description={run.error_message ?? '未知错误'}
                     style={{marginBottom: 16}}
                 />
@@ -134,6 +129,7 @@ export function EvaluationDetailPage() {
                 <Space wrap>
                     <span>仅看Bad Case:</span>
                     <Switch
+                        aria-label="仅看 Bad Case"
                         checked={badCaseOnly}
                         onChange={(v) => {
                             setBadCaseOnly(v)
@@ -147,12 +143,22 @@ export function EvaluationDetailPage() {
                 </Space>
             </Card>
             <Table
+                locale={{emptyText: <DataState failed={isError} description="当前条件下暂无评测样本"
+                    onRetry={() => {void refetch()}}/>}}
                 rowKey="id"
                 loading={isLoading}
                 columns={columns}
                 dataSource={items?.items ?? []}
                 onRow={(record) => ({
                     onClick: () => setActiveItem(record),
+                    tabIndex: 0,
+                    'aria-label': `查看评测样本：${record.case_id}`,
+                    onKeyDown: (event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault()
+                            setActiveItem(record)
+                        }
+                    },
                     style: { cursor: 'pointer' }
                 })}
                 pagination={{
@@ -201,7 +207,7 @@ function ItemDetailDrawer({
             open={Boolean(item)}
             onClose={onClose}
             title={item ? `Case ${item.case_id}`: '-'}
-            width={720}
+            size="min(720px, 100vw)"
             destroyOnHidden
         >
             {item && (

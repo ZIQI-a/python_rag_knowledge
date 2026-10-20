@@ -1,5 +1,7 @@
+import {PageHeader} from '@/components/PageHeader'
+import {DataState} from '@/components/PageState'
 /** 用户管理页 */
-import {App as AntdApp, Button, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag, Typography} from "antd";
+import {App as AntdApp, Button, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag} from "antd";
 import type {TableProps} from "antd";
 import {DeleteOutlined, EditOutlined, PlusOutlined, ReloadOutlined, TeamOutlined} from "@ant-design/icons";
 import {useState} from "react";
@@ -14,7 +16,6 @@ import {
 } from "@/api/users.ts";
 import {useRoles} from "@/api/roles.ts";
 
-const {Title, Paragraph} = Typography
 
 // 创建用户表单的字段
 interface CreateFormValues {
@@ -72,7 +73,7 @@ export function UserPage() {
             render: (_, record) => (
                 record.roles && record.roles.length > 0 ? (
                     <Space size={4} wrap>
-                        {record.roles.map((r) => <Tag key={r.id} color="default">{r.name}</Tag>)}
+                        {record.roles.map((r) => <Tag key={r.id} color="blue">{r.name}</Tag>)}
                     </Space>
                 ) : <Space>-</Space>
             ),
@@ -84,7 +85,7 @@ export function UserPage() {
             render: (status: UserRead['status']) => (
                 status === 'active'
                     ? <Tag color="success">正常</Tag>
-                    : <Tag color="default">封禁</Tag>
+                    : <Tag color="error">封禁</Tag>
             ),
         },
         {
@@ -212,11 +213,7 @@ export function UserPage() {
 
     return (
         <div>
-            <Title level={3}>名籍管理</Title>
-            <Paragraph type="secondary">
-                在此可管理其中各项名籍记录
-            </Paragraph>
-            <Space style={{ marginBottom: 16 }} wrap>
+            <PageHeader title="名籍 · 用户管理" description="在此可管理其中各项名籍记录" actions={<>
                 <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
                     新添籍录
                 </Button>
@@ -224,8 +221,13 @@ export function UserPage() {
                         onClick={() => listQuery.refetch()}>
                     刷新
                 </Button>
-            </Space>
+            </>}/>
+            {!listQuery.isLoading && (listQuery.isError || !listQuery.data?.items.length) ? (
+                <DataState failed={listQuery.isError} description="暂无用户记录"
+                    onRetry={() => {void listQuery.refetch()}} action={page > 1 ? <Button onClick={() => setPage(1)}>返回第一页</Button> : <Button type="primary" onClick={() => setCreateOpen(true)}>新建用户</Button>}/>
+            ) : (
             <Table<UserRead>
+                scroll={{x: 'max-content'}}
                 rowKey="id"
                 loading={listQuery.isLoading}
                 columns={columns}
@@ -241,6 +243,7 @@ export function UserPage() {
                     },
                 }}
             />
+            )}
             {/*新建用户弹窗*/}
             <Modal
                 title="新建用户"

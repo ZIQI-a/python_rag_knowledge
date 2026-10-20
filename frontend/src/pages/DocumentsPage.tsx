@@ -1,3 +1,5 @@
+import {PageHeader} from '@/components/PageHeader'
+import {DataState} from '@/components/PageState'
 import {
     App as AntdApp,
     Button, Form,
@@ -7,7 +9,6 @@ import {
     type TableProps,
     Tag,
     Tooltip,
-    Typography,
     Upload,
     type UploadFile,
     type UploadProps
@@ -21,7 +22,6 @@ import {DeleteOutlined, InboxOutlined, ReadOutlined, ReloadOutlined, TagOutlined
 import {useAuthStore} from "@/stores/authStore.ts";
 
 
-const { Title, Paragraph} = Typography
 
 const ACCEPTED = '.pdf, .docx, .md, .markdown, .html, .htm'
 
@@ -344,11 +344,7 @@ export function DocumentsPage() {
 
     return (
         <div>
-            <Title level={3}>文档管理</Title>
-            <Paragraph type={"secondary"}>
-                支持PDF、 Word、 HTML、Markdown。上传后会进行文档解析、拆分、向量化，状态自动刷新
-            </Paragraph>
-            <Space style={{marginBottom: 16}} wrap>
+            <PageHeader title="藏书阁 · 文档管理" description="支持PDF、 Word、 HTML、Markdown。上传后会进行文档解析、拆分、向量化，状态自动刷新" actions={<>
                 <Button type="primary" icon={<InboxOutlined />}
                         onClick={() => setUploadOpen(true)}>
                     上传文档
@@ -359,6 +355,7 @@ export function DocumentsPage() {
                     刷新
                 </Button>
                 <Select<StatusFilter>
+                    aria-label="文档状态筛选"
                     value={statusFilter}
                     onChange={(v) => {
                         setStatusFilter(v)
@@ -367,8 +364,13 @@ export function DocumentsPage() {
                     options={STATUS_OPTIONS}
                     style={{width: 140}}
                     />
-            </Space>
+            </>}/>
+            {!listQuery.isLoading && (listQuery.isError || !listQuery.data?.items.length) ? (
+                <DataState failed={listQuery.isError} description={statusFilter === 'all' ? '暂无文档，可上传文件建立知识库' : '当前筛选条件下没有文档'}
+                    onRetry={() => {void listQuery.refetch()}} action={page > 1 ? <Button onClick={() => setPage(1)}>返回第一页</Button> : statusFilter === 'all' ? <Button type="primary" onClick={() => setUploadOpen(true)}>上传第一份文档</Button> : <Button onClick={() => {setStatusFilter('all'); setPage(1)}}>清除筛选</Button>}/>
+            ) : (
             <Table<DocumentRead>
+                scroll={{x: 'max-content'}}
                 rowKey="id"
                 loading={listQuery.isLoading}
                 columns={columns}
@@ -384,6 +386,7 @@ export function DocumentsPage() {
                     },
                 }}
                 />
+            )}
             {/*上传文档弹窗*/}
             <UploadModal
                 open={uploadOpen}

@@ -1,3 +1,4 @@
+import {useMediaQuery} from '@/utils/useMediaQuery'
 import {PALETTE} from '@/config/theme'
 // 引用面板组件
 import {Collapse, Tag, Typography} from "antd";
@@ -13,9 +14,9 @@ function formatSourceTag(sources?: string[]): SourceTagMeta | null {
     if (!sources || sources.length === 0) return null
     const hasVector = sources.includes('vector')
     const hasKeyword = sources.includes('keyword')
-    if (hasVector && hasKeyword) return { color: 'default', label: '混合' }
-    if (hasVector) return { color: 'default', label: '向量' }
-    if (hasKeyword) return { color: 'default', label: '关键词' }
+    if (hasVector && hasKeyword) return { color: 'purple', label: '混合' }
+    if (hasVector) return { color: 'blue', label: '向量' }
+    if (hasKeyword) return { color: 'orange', label: '关键词' }
     return null
 }
 
@@ -41,6 +42,7 @@ function anchorId(messageId: string, n: number): string {
 // 引用列表组件
 export const CitationList = forwardRef<CitationListHandle, CitationListProps>(
     function CitationList({ citations, messageId }, ref) {
+        const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
         const [activeKey, setActiveKey] = useState<string[]>([]) // 受控active，保持已展开的项目不被点击
 
         useImperativeHandle(
@@ -54,11 +56,11 @@ export const CitationList = forwardRef<CitationListHandle, CitationListProps>(
                     requestAnimationFrame(() => {
                         document
                             .getElementById(anchorId(messageId, n))
-                            ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                            ?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'center' })
                     })
                 }
             }),
-            [citations, messageId]
+            [citations, messageId, reducedMotion]
         )
 
         if (citations.length === 0) return null;
@@ -69,14 +71,14 @@ export const CitationList = forwardRef<CitationListHandle, CitationListProps>(
                 key: panelKey(c),
                 label: (
                     <span id={anchorId(messageId, c.ordinal)}>
-                    <Tag color="default" style={{ marginInlineEnd: 8 }}>{`[${c.ordinal}]`}</Tag>
+                    <Tag color="blue" style={{ marginInlineEnd: 8 }}>{`[${c.ordinal}]`}</Tag>
                     {sourceTag ? (
                         <Tag color={sourceTag.color} style={{ marginInlineEnd: 8 }}>
                             {sourceTag.label}
                         </Tag>
                     ) : null}
                     {rerankScore != null ? (
-                        <Tag style={{ marginInlineEnd: 8 }}>
+                        <Tag color="gold" style={{ marginInlineEnd: 8 }}>
                             {`rerank ${rerankScore.toFixed(2)}`}
                         </Tag>
                     ) : null}

@@ -9,8 +9,8 @@ const { Text, Paragraph } = Typography
 const ACTION_META: Record<AgentStep['action'], { color: string; label: string }> = {
     initial: { color: 'default', label: '初始检索' },
     proceed: { color: 'success', label: '继续生成' },
-    rewrite_query: { color: 'default', label: '改写Query' },
-    switch_route: { color: 'default', label: '切换策略' },
+    rewrite_query: { color: 'blue', label: '改写Query' },
+    switch_route: { color: 'purple', label: '切换策略' },
     refuse: { color: 'error', label: '拒绝' }
 }
 
@@ -38,7 +38,7 @@ export function AgentStepsPanel({ steps }: AgentStepsPanelProps) {
                     key: 'agent',
                     label: (
                         <span>
-                            <Tag color="default" style={{ marginInlineEnd: 8 }}>
+                            <Tag color="geekblue" style={{ marginInlineEnd: 8 }}>
                                 Agent · {rounds} 轮
                             </Tag>
                             <Text type="secondary">

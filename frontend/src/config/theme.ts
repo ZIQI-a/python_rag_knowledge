@@ -63,6 +63,8 @@ export const wenjinTheme: ThemeConfig = {
         colorBorder: PALETTE.lineStrong,
         colorBorderSecondary: PALETTE.line,
         colorSplit: PALETTE.line,
+        lineWidthFocus: 2,
+        colorPrimaryBorder: PALETTE.primary,
         borderRadius: 7,
         borderRadiusLG: 10,
         fontSize: 14,

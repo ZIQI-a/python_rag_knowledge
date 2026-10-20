@@ -1,3 +1,5 @@
+import {PageHeader} from '@/components/PageHeader'
+import {PageFailure, PageLoading} from '@/components/PageState'
 import {PALETTE} from '@/config/theme'
 import {
     Alert,
@@ -46,7 +48,7 @@ import {gfmComponents} from "@/components/markdownComponents.tsx";
 import {useAuthStore} from "@/stores/authStore.ts";
 
 
-const {Title, Text, Paragraph} = Typography
+const {Text, Paragraph} = Typography
 const CHUNK_PAGE_SIZE = 20
 const DELETABLE_STSTUSES: ReadonlySet<DocumentRead['status']> = new Set([
     'ready',
@@ -422,8 +424,8 @@ export function DocumentDetailPage() {
     // 获取文档下载链接
     const downloadUrl = useMemo(() => buildDocumentFileUrl(id, {download: true}), [id]);
 
-    if (docQuery.isLoading) return <Skeleton active/>;
-    if (!doc) return null
+    if (docQuery.isLoading) return <PageLoading/>
+    if (docQuery.isError || !doc) return <PageFailure onRetry={() => {void docQuery.refetch()}}/>
 
     const canDelete = DELETABLE_STSTUSES.has(doc.status);
     const canRetry = doc.status === 'failed';
@@ -432,7 +434,7 @@ export function DocumentDetailPage() {
     return (
         <div>
             {/*文档chunk详情页*/}
-            <Space style={{marginBottom: 16}} wrap>
+            <PageHeader title={doc.name} description="查看文档内容、处理状态与切分结果。" actions={<>
                 <Link to="/documents">
                     <Button icon={<ArrowLeftOutlined/>}>返回文档列表</Button>
                 </Link>
@@ -483,17 +485,16 @@ export function DocumentDetailPage() {
                     >删除</Button>
                 </Popconfirm>
 
-            </Space>
-            <Title level={3} style={{marginBottom: 16}}>{doc.name}</Title>
+            </>}/>
             {doc.status === 'failed' && doc.error_message ? (
                 <Alert
                     type='error'
-                    message='入库失败'
+                    title='入库失败'
                     description={doc.error_message}
                     showIcon
                     style={{marginBottom: 16}}/>
             ) : null}
-            <Descriptions bordered column={1} size="middle" style={{marginBottom: 24}}>
+            <Descriptions bordered column={1} size="middle" style={{marginBottom: 24, overflowWrap: 'anywhere'}}>
                 <Descriptions.Item label="状态">
                     <Tag color={getStatusColor(doc.status)}>{getStatusLabel(doc.status)}</Tag>
                 </Descriptions.Item>

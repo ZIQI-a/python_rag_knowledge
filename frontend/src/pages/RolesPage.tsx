@@ -1,12 +1,13 @@
+import {PageHeader} from '@/components/PageHeader'
+import {DataState} from '@/components/PageState'
 /** 角色管理页 */
-import {App as AntdApp, Button, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag, Tooltip, Typography} from "antd";
+import {App as AntdApp, Button, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag, Tooltip} from "antd";
 import type {TableProps} from "antd";
 import {DeleteOutlined, EditOutlined, PlusOutlined, ReloadOutlined} from "@ant-design/icons";
 import {useState} from "react";
 import type {RoleRead} from "@/client";
 import {useCreateRole, useDeleteRole, useRoles, useUpdateRole} from "@/api/roles.ts";
 
-const {Title, Paragraph} = Typography
 
 // 默认的两个角色不能修改或删除
 const PROTECTED_ROLE_NAMES = new Set(['admin', 'user'])
@@ -150,11 +151,7 @@ export function RolesPage() {
 
     return (
         <div>
-            <Title level={3}>司津 · 角色管理</Title>
-            <Paragraph type="secondary">
-                角色承载权限标签，决定该角色下的用户能检索到哪些文档。admin 与 user 为内置角色，不可删除、不可改名。
-            </Paragraph>
-            <Space style={{marginBottom: 16}} wrap>
+            <PageHeader title="司津 · 角色管理" description="角色承载权限标签，决定该角色下的用户能检索到哪些文档。admin 与 user 为内置角色，不可删除、不可改名。" actions={<>
                 <Button type="primary" icon={<PlusOutlined/>} onClick={() => setCreateOpen(true)}>
                     新建角色
                 </Button>
@@ -162,14 +159,20 @@ export function RolesPage() {
                         onClick={() => listQuery.refetch()}>
                     刷新
                 </Button>
-            </Space>
+            </>}/>
+            {!listQuery.isLoading && (listQuery.isError || !listQuery.data?.length) ? (
+                <DataState failed={listQuery.isError} description="暂无角色记录"
+                    onRetry={() => {void listQuery.refetch()}} action={<Button type="primary" onClick={() => setCreateOpen(true)}>新建角色</Button>}/>
+            ) : (
             <Table<RoleRead>
+                scroll={{x: 'max-content'}}
                 rowKey="id"
                 loading={listQuery.isLoading}
                 columns={columns}
                 dataSource={listQuery.data ?? []}
                 pagination={false}
             />
+            )}
             {/*新建角色弹窗*/}
             <Modal
                 title="新建角色"

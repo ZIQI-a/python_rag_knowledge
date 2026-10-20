@@ -14,6 +14,7 @@ interface Props {
 export function BadCaseCategorySelect({ value, onChange, allowClear = true, style, placeholder = '选择归因类别'}: Props) {
     return (
         <Select
+            aria-label="归因类别"
             value={value ?? undefined}
             onChange={(v) => onChange((v as BadCaseCategory) ?? null)}
             onClear={() => onChange(null)}

@@ -1,8 +1,9 @@
+import {PageHeader} from '@/components/PageHeader'
 import {Card, Col, Row, Spin, Tag, Typography} from 'antd'
 import {healthApp, healthCos, healthDb, type HealthStatus} from "@/client";
 import {useQuery} from "@tanstack/react-query";
 
-const {Title, Paragraph, Text} = Typography
+const {Paragraph, Text} = Typography
 
 interface CheckCardProps {
     title: string
@@ -29,7 +30,7 @@ function statusLabel(status: HealthStatus['status'] | undefined): string {
 // 检查状态的卡片从后端获取信息展示
 function CheckCard({title, description, data, isLoading}: CheckCardProps) {
     return (
-        <Card title={title} bordered>
+        <Card title={title} variant="outlined">
             <Paragraph type="secondary" style={{marginBottom: 12}}>
                 {description}
             </Paragraph>
@@ -70,10 +71,7 @@ export function HomePage() {
 
     return (
         <div>
-            <Title level={3}>状态健康检查</Title>
-            <Paragraph type="secondary">
-                3个卡片均显示正常，其代表服务正常
-            </Paragraph>
+            <PageHeader title="问津亭 · 服务状态" description="查看后端服务、数据库及文件存储的运行状态。"/>
             <Row gutter={[16, 16]} style={{marginTop: 16}}>
                 <Col xs={24} md={8}>
                     <CheckCard title='后端服务'

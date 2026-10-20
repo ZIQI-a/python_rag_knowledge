@@ -9,6 +9,7 @@ import './index.css'
 import {router} from './routes'
 import {useAuthStore} from "@/stores/authStore.ts";
 import {PALETTE, wenjinTheme} from '@/config/theme'
+import {AppThemeProvider} from '@/components/AppThemeProvider'
 
 // 先加载本地存储的用户信息
 useAuthStore.getState().hydrate()
@@ -16,7 +17,7 @@ useAuthStore.getState().hydrate()
 // 为请求拦截器等处的静态提示提供同一套主题与语言配置。
 ConfigProvider.config({
     holderRender: (children) => (
-        <ConfigProvider locale={zhCN} theme={wenjinTheme}>{children}</ConfigProvider>
+        <ConfigProvider locale={zhCN} theme={{...wenjinTheme, token: {...wenjinTheme.token, motion: false}}}>{children}</ConfigProvider>
     ),
 })
 
@@ -36,12 +37,12 @@ if (!root) throw new Error('根元素找不到')
 
 createRoot(root).render(
     <StrictMode>
-        <ConfigProvider locale={zhCN} theme={wenjinTheme}>
+        <AppThemeProvider>
             <AntdApp style={{minHeight: '100vh', background: PALETTE.paper, color: PALETTE.ink}}>
                 <QueryClientProvider client={queryClient}>
                     <RouterProvider router={router}/>
                 </QueryClientProvider>
             </AntdApp>
-        </ConfigProvider>
+        </AppThemeProvider>
     </StrictMode>,
 )

@@ -50,6 +50,8 @@
 | 应用装配 | [main.tsx](../frontend/src/main.tsx) |
 | 主题配色与组件令牌 | [theme.ts](../frontend/src/config/theme.ts) |
 | 路由与布局 | [routes/](../frontend/src/routes/)、[layouts/](../frontend/src/layouts/) |
+| 统一页头与页面状态 | [PageHeader.tsx](../frontend/src/components/PageHeader.tsx)、[PageState.tsx](../frontend/src/components/PageState.tsx) |
+| 响应式与减少动画偏好 | [useMediaQuery.ts](../frontend/src/utils/useMediaQuery.ts)、[AppThemeProvider.tsx](../frontend/src/components/AppThemeProvider.tsx) |
 | 品牌、图标、页面元信息与收录 | [brand.ts](../frontend/src/config/brand.ts)、[BrandLogo.tsx](../frontend/src/components/BrandLogo.tsx)、[PageTitleLayout.tsx](../frontend/src/components/PageTitleLayout.tsx)、[public/](../frontend/public/)、[robots.txt](../frontend/public/robots.txt)、[index.html](../frontend/index.html) |
 | 首页、登录、文档、对话、评测、用户与角色 | [pages/](../frontend/src/pages/) |
 | 鉴权、会话、引用、追踪、指标与归因组件 | [components/](../frontend/src/components/) |

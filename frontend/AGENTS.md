@@ -18,6 +18,8 @@
 | 业务页面 | `src/pages/` |
 | 登录状态与守卫 | `src/stores/authStore.ts`、`src/components/RequireAuth.tsx`、`RequireAdmin.tsx` |
 | 共享组件 | `src/components/` |
+| 页头 / 加载 / 空状态 / 异常 | `src/components/PageHeader.tsx`、`PageState.tsx`、`src/routes/index.tsx` |
+| 响应式 / 减少动画偏好 | `src/utils/useMediaQuery.ts`、`src/components/AppThemeProvider.tsx` |
 | 品牌 / 页面元信息 / 收录 | `src/config/brand.ts`、`src/components/BrandLogo.tsx`、`PageTitleLayout.tsx`、`index.html`、`public/robots.txt` |
 | 配色 / 主题令牌 | `src/config/theme.ts`、`src/main.tsx`；自定义样式复用 `PALETTE`，组件主题复用 `wenjinTheme` |
 | 请求 / SSE / 查询键 | `src/api/` |

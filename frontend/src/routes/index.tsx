@@ -1,3 +1,4 @@
+import {NotFoundPage, PageLoading, RouteErrorPage} from '@/components/PageState'
 import {createBrowserRouter} from "react-router-dom";
 import {BasicLayout} from "@/layouts/BasicLayout.tsx";
 import {HomePage} from "@/pages/HomePage.tsx";
@@ -16,6 +17,8 @@ import {PageTitleLayout} from "@/components/PageTitleLayout.tsx";
 export const router = createBrowserRouter([
     {
         element: <PageTitleLayout />,
+        errorElement: <RouteErrorPage/>,
+        hydrateFallbackElement: <PageLoading/>,
         children: [
             // 登录单独路由
             { path: '/login', element: <LoginPage /> },
@@ -26,18 +29,19 @@ export const router = createBrowserRouter([
                     {
                         element: <BasicLayout />,
                         children: [
-                            { index: true, element: <HomePage /> },
-                            { path: 'documents', element: <DocumentsPage /> },
-                            { path: 'documents/:id', element: <DocumentDetailPage /> },
-                            { path: 'chat', element: <ChatPage />},
+                            { index: true, element: <HomePage />, errorElement: <RouteErrorPage/> },
+                            { path: 'documents', element: <DocumentsPage />, errorElement: <RouteErrorPage/> },
+                            { path: 'documents/:id', element: <DocumentDetailPage />, errorElement: <RouteErrorPage/> },
+                            { path: '*', element: <NotFoundPage/> },
+                            { path: 'chat', element: <ChatPage />, errorElement: <RouteErrorPage/>},
                             // admin only
                             {
                                 element: <RequireAdmin />,
                                 children: [
-                                    { path: 'evaluation', element: <EvaluationListPage /> },
-                                    { path: 'evaluation/runs/:id', element: <EvaluationDetailPage /> },
-                                    { path: 'users', element: <UserPage /> },
-                                    { path: 'roles', element: <RolesPage /> },
+                                    { path: 'evaluation', element: <EvaluationListPage />, errorElement: <RouteErrorPage/> },
+                                    { path: 'evaluation/runs/:id', element: <EvaluationDetailPage />, errorElement: <RouteErrorPage/> },
+                                    { path: 'users', element: <UserPage />, errorElement: <RouteErrorPage/> },
+                                    { path: 'roles', element: <RolesPage />, errorElement: <RouteErrorPage/> },
                                 ]
                             }
                         ]

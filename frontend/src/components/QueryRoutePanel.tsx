@@ -10,9 +10,9 @@ const { Paragraph, Text } = Typography
 
 const ROUTE_META: Record<QueryRouteRead['route'], { color: string; label: string; hint: string }> = {
     original: { color: 'default', label: 'Original', hint: '问题清晰，无需改写' },
-    rewrite: { color: 'default', label: 'Rewrite', hint: '问题已改写' },
-    hyde: { color: 'default', label: 'HyDE', hint: '已生成假设答案用于检索' },
-    multi_query: { color: 'default', label: 'Multi_Query', hint: '已扩展为多个子查询' },
+    rewrite: { color: 'blue', label: 'Rewrite', hint: '问题已改写' },
+    hyde: { color: 'purple', label: 'HyDE', hint: '已生成假设答案用于检索' },
+    multi_query: { color: 'orange', label: 'Multi_Query', hint: '已扩展为多个子查询' },
 }
 
  // 路由策略调试面板前端展示

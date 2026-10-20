@@ -1,3 +1,5 @@
+import {PageHeader} from '@/components/PageHeader'
+import {DataState} from '@/components/PageState'
 import {useState} from "react";
 import {
     useCreateEvaluationRun,
@@ -86,7 +88,7 @@ function DeleteRunButton({ runId, runName }: { runId: string, runName: string })
                 message.success('已删除')
             }}
         >
-            <Button type="text" danger icon={<DeleteOutlined />} />
+            <Button type="text" danger icon={<DeleteOutlined />} aria-label={`删除评测：${runName}`} />
         </Popconfirm>
     )
 }
@@ -94,7 +96,7 @@ function DeleteRunButton({ runId, runName }: { runId: string, runName: string })
 export function EvaluationListPage() {
     const [page, setPage] = useState(1)
     const  pageSize = 20
-    const { data, isLoading } = useEvaluationRuns(page, pageSize)
+    const { data, isLoading, isError, refetch } = useEvaluationRuns(page, pageSize)
     const [modalOpen, setModalOpen] = useState(false)
 
     const columns: ColumnsType<EvaluationRunListItem> = [
@@ -156,12 +158,16 @@ export function EvaluationListPage() {
 
     return (
         <div>
-            <div style={{ marginBottom: 16, display: "flex", justifyContent: 'space-between' }}>
-                <h2 style={{ margin: 0 }}>评测分析</h2>
+            <PageHeader title="试津 · 评测分析" description="查看问答质量指标、评测样本与问题归因。" actions={<>
                 <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
                     新建评测
                 </Button>
-            </div>
+            </>}/>
+            {!isLoading && (isError || !data?.items.length) ? (
+                <DataState failed={isError} description="暂无评测任务"
+                    onRetry={() => {void refetch()}}
+                    action={page > 1 ? <Button onClick={() => setPage(1)}>返回第一页</Button> : <Button type="primary" onClick={() => setModalOpen(true)}>创建首次评测</Button>}/>
+            ) : (
             <Table
                 rowKey="id"
                 loading={isLoading}
@@ -176,6 +182,7 @@ export function EvaluationListPage() {
                 }}
                 scroll={{ x: 1400 }}
             />
+            )}
             <CreateRunModal open={modalOpen} onClose={() => setModalOpen(false)} />
         </div>
     )

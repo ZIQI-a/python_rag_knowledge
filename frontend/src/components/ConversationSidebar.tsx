@@ -4,6 +4,7 @@ import {useMutation, useQuery, useQueryClient} from "@tanstack/react-query";
 import {conversationsQueryKey} from "@/api/queryKeys.ts";
 import {type ConversationListItem, deleteConversation, listConversations} from "@/client";
 import {DeleteOutlined, PlusOutlined} from "@ant-design/icons";
+import {DataState} from '@/components/PageState';
 
 
 const { Text } = Typography
@@ -62,10 +63,9 @@ export function ConversationSidebar({
                     <div style={{ textAlign: 'center', padding: 24 }}>
                         <Spin />
                     </div>
-                ) : items.length === 0 ? (
-                    <Text type="secondary" style={{ display: 'block', textAlign: 'center', padding: 24 }}>
-                        暂无会话，请点击新建会话开始
-                    </Text>
+                ) : conversationsQuery.isError || items.length === 0 ? (
+                    <DataState failed={conversationsQuery.isError} description="暂无会话，点击上方新建对话开始"
+                        onRetry={() => {void conversationsQuery.refetch()}}/>
                 ) : (
                     <List
                         size="small"
@@ -118,7 +118,6 @@ function ConversationItem({
                 margin: '2px 8px',
                 border: 'none'
             }}
-            onClick={onSelect}
             actions={[
                 <Popconfirm
                     key="del"
@@ -135,6 +134,7 @@ function ConversationItem({
                 >
                     <Tooltip title="删除会话">
                         <Button
+                            aria-label={`删除会话：${item.title}`}
                             type="text"
                             size="small"
                             danger
@@ -146,7 +146,8 @@ function ConversationItem({
                 </Popconfirm>
             ]}
         >
-            <div style={{ minWidth: 0 }}>
+            <Button type="text" onClick={onSelect} aria-pressed={isActive}
+                style={{height: 'auto', minWidth: 0, flex: 1, padding: 0, textAlign: 'left', display: 'block'}}>
                 <Text
                     strong={isActive}
                     ellipsis={{ tooltip: item.title }}
@@ -157,7 +158,7 @@ function ConversationItem({
                 <Text type="secondary" style={{ fontSize: 12 }}>
                     {formatRelativeTime(item.updated_at)}
                 </Text>
-            </div>
+            </Button>
         </List.Item>
     )
 }

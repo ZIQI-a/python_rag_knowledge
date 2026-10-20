@@ -5,7 +5,7 @@ import {useQuery} from "@tanstack/react-query";
 import {currentUserKey} from "@/api/queryKeys.ts";
 import {fetchCurrentUser} from "@/api/auth.ts";
 import {useEffect} from "react";
-import {Spin} from "antd";
+import {PageLoading} from '@/components/PageState';
 
 
 export function RequireAuth() {
@@ -31,7 +31,7 @@ export function RequireAuth() {
     if(!ready) {
         return (
             <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}>
-                <Spin />
+                <PageLoading/>
             </div>
         )
     }

@@ -1,7 +1,10 @@
+import {PageHeader} from '@/components/PageHeader'
+import {DataState, PageLoading} from '@/components/PageState'
+import {useMediaQuery} from '@/utils/useMediaQuery'
 import {PALETTE} from '@/config/theme'
 // 对话页面
 
-import {Alert, Avatar, Button, Empty, Input, Layout, message as antdMessage, Spin, Tag, Typography} from "antd";
+import {Alert, Avatar, Button, Drawer, Empty, Input, Layout, message as antdMessage, Spin, Tag, Typography} from "antd";
 import {
     type AgentStep,
     type CitationRead,
@@ -16,7 +19,7 @@ import React, {useEffect, useMemo, useRef, useState} from "react";
 import type {ChatStreamEvent} from "@/api/chatStream.ts";
 import {streamChat} from "@/api/chatStream.ts";
 import {formatApiError} from "@/utils/errors.ts";
-import {RobotOutlined, SendOutlined, UserOutlined} from "@ant-design/icons";
+import {HistoryOutlined, RobotOutlined, SendOutlined, UserOutlined} from "@ant-design/icons";
 import {gfmComponents} from "@/components/markdownComponents.tsx";
 import {CitationList, type CitationListHandle} from "@/components/CitationList.tsx";
 import Markdown from "react-markdown";
@@ -31,7 +34,7 @@ import {useAuthStore} from "@/stores/authStore.ts";
 
 const {Text} = Typography
 const {TextArea} = Input
-const {Sider, Content} = Layout
+const {Sider} = Layout
 // 本地存储的key
 const STORAGE_KEY_PREFIX = 'rag.chat.conversation_id'
 const CITATION_HASH_PREFIX = '#cite-'
@@ -76,6 +79,9 @@ function fromServerMessage(m: MessageRead): UiMessage {
 
 // 主要的页面聊天
 export function ChatPage() {
+    const isMobile = useMediaQuery('(max-width: 767px)')
+    const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
+    const [conversationsOpen, setConversationsOpen] = useState(false)
     const queryClient = useQueryClient()
     const userId = useAuthStore((s) => s.user?.id)
     const storageKey = `${STORAGE_KEY_PREFIX}.${userId}`
@@ -144,8 +150,8 @@ export function ChatPage() {
 
     // 自动滚动到底部
     useEffect(() => {
-        scrollRef.current?.scrollTo({top: scrollRef.current.scrollHeight, behavior: 'smooth'});
-    }, [allMessages])
+        scrollRef.current?.scrollTo({top: scrollRef.current.scrollHeight, behavior: reducedMotion ? 'auto' : 'smooth'});
+    }, [allMessages, reducedMotion])
     // 组件卸载或先前对话时取消进行中的请求
     useEffect(() => {
         return () => {
@@ -312,15 +318,19 @@ export function ChatPage() {
      */
     return (
 
+        <div style={{height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column'}}>
+        <PageHeader title="万事知 · 知识问答" description="基于知识库文档提问，回答可追溯到来源。"
+            actions={isMobile && <Button icon={<HistoryOutlined/>} onClick={() => setConversationsOpen(true)}
+                aria-expanded={conversationsOpen}>会话列表</Button>}/>
         <Layout style={{
-            height: 'calc(100vh - 160px)',
+            flex: 1, minHeight: 0,
             background: PALETTE.raised,
             borderRadius: 8,
             overflow: "hidden",
             border: `1px solid ${PALETTE.line}`
         }}>
             {/*右侧会话列表展示*/}
-            <Sider
+            {!isMobile && <Sider
                 width={260}
                 theme={"light"}
                 style={{borderRight: `1px solid ${PALETTE.line}`, background: PALETTE.sunken}}
@@ -328,20 +338,27 @@ export function ChatPage() {
                 <ConversationSidebar currentId={conversationId} onSelect={handleSelectConversation}
                                      onDeleted={handleConversationDeleted} onCreateNew={handleNewConversation}
                                      isCreating={createMutation.isPending}/>
-            </Sider>
+            </Sider>}
             {/*左侧展示会话具体内容*/}
-            <Content style={{display: 'flex', flexDirection: 'column'}}>
-                <div ref={scrollRef} style={{flex: 1, overflowY: 'auto', padding: 24}}>
-                    {historyQuery.isLoading ? (
-                        <Spin/>
+            <div style={{flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, background: PALETTE.raised}}>
+                <div ref={scrollRef} role="region" aria-label="对话消息" style={{flex: 1, minHeight: 0, overflowY: 'auto', padding: isMobile ? 12 : 24}}>
+                    {historyQuery.isError || createMutation.isError ? (
+                        <DataState failed onRetry={() => {
+                            if (conversationId) void historyQuery.refetch()
+                            else createMutation.mutate()
+                        }}/>
+                    ) : historyQuery.isLoading || createMutation.isPending ? (
+                        <PageLoading/>
                     ) : allMessages.length === 0 ? (
                         <Empty description="还没有问题，请在下方输入问题"/>
                     ) : (
                         allMessages.map((msg) => <MessageBubble key={msg.id} message={msg}/>)
                     )}
                 </div>
-                <div style={{marginTop: 12, display: 'flex', gap: 8}}>
+                <div style={{padding: isMobile ? 12 : 16, borderTop: `1px solid ${PALETTE.line}`, display: 'flex', gap: 8, flexShrink: 0}}>
                     <TextArea
+                        aria-label="输入问题"
+                        style={{minWidth: 0}}
                         value={draft}
                         onChange={(e) => setDraft(e.target.value)}
                         onKeyDown={handleKeyDown}
@@ -359,8 +376,17 @@ export function ChatPage() {
                         发送
                     </Button>
                 </div>
-            </Content>
+            </div>
         </Layout>
+        <Drawer title="会话列表" placement="left" open={isMobile && conversationsOpen}
+            onClose={() => setConversationsOpen(false)} size={300} styles={{body: {padding: 0}}}>
+            <ConversationSidebar currentId={conversationId}
+                onSelect={(id) => {handleSelectConversation(id); setConversationsOpen(false)}}
+                onDeleted={handleConversationDeleted}
+                onCreateNew={() => {handleNewConversation(); setConversationsOpen(false)}}
+                isCreating={createMutation.isPending}/>
+        </Drawer>
+        </div>
     )
 }
 
@@ -423,7 +449,7 @@ function AssistantHeader({message}: { message: UiMessage }) {
     const tags: React.ReactNode[] = []
     if (message.cacheHit) {
         tags.push(
-            <Tag key="cache" color="default">
+            <Tag key="cache" color="cyan">
                 缓存命中
             </Tag>
         )
@@ -479,7 +505,7 @@ function MessageBubble({message}: MessageBubbleProps) {
             />
             <div
                 style={{
-                    maxWidth: '78%',
+                    maxWidth: '78%', minWidth: 0, overflowWrap: 'anywhere',
                     background: isUser ? PALETTE.primarySoft : PALETTE.sunken,
                     padding: '12px 16px',
                     borderRadius: 8
